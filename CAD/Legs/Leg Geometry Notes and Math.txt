@@ -1,0 +1,43 @@
+BatteryCarrier Y-Mount to Bottom of Plate:
+78.5mm holeCenter to top of mountPlate + 10mm standoff = 88.5mm
+
+Width (centered) is 120mm
+
+
+
+
+
+6.956mm offset from plateHoleCenter to carrierBottomLegMountFace
+51mm plateHoleCenter to plateInnerLegHoleCenter
+
+	    44.044	         6.956
+x ---------------------- x ----- x
+
+<------------- 51mm ------------->
+
+
+
+Plate Inner Holes Center-Center = 148mm
+BatteryCarrier BraceMount Face Width = 60mm
+Brace Edge to Mount Hole Center = (148-60)/2 = 44mm
+
+//------------------------------------------------------------------
+//--------------------- New Leg Angle Calculations -----------------
+//------------------------------------------------------------------
+
+
+Line of Intersection to InnerHoleCenter = 7.512mm
+Overall desired at base is 18in or 457.2mm
+
+
+7.512mm ---- 44mm ---- 60mm ---- 44mm ---- 7.512mm
+
+^^^ Total of (7.512 + 44)2 + 60 = 163.024mm
+Each leg needs 163.024/2 = 81.152mm of spread from current point of rotation
+Current spread is 131.085mm, so an increase of 163.024-131.085 = 31.939mm
+
+477.727 after adjustments. Something went wrong.
+
+FIXED!!!
+
+Not notating the rest of this bullshit. Geometry is a circular reference due to facedraft. Trial-and-error solved it.
