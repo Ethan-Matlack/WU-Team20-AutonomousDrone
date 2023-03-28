@@ -1,4 +1,3 @@
-#With the white out
 import cv2
 import numpy as np
 
@@ -34,23 +33,21 @@ while x<=1:
     red_mask = cv2.bitwise_or(red_mask1, red_mask2)
     black_mask = cv2.inRange(hsv, black_lower, black_upper)
 
-    # Set pixels of each color to white
+    '''# Set pixels of each color to white
     frame[blue_mask != 0] = [255, 255, 255]
     frame[yellow_mask != 0] = [255, 255, 255]
     frame[red_mask != 0] = [255, 255, 255]
-    frame[black_mask != 0] = [255, 255, 255]
+    frame[black_mask != 0] = [255, 255, 255]'''
 
 
     # Convert the image to grayscale
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    cv2.imshow("Gray", gray)
+    #gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    #cv2.imshow("Gray", gray)
 
     # Detect the edges in the image using Canny edge detection
-    edges = cv2.Canny(gray, 50, 150)
-    cv2.imshow("Edges", edges)
+    edges = cv2.Canny(frame, 50, 150)
 
     blur = cv2.blur(edges, (10,10))
-    cv2.imshow("Blur", blur)
 
     ret, thresh = cv2.threshold(blur, 127, 255, 0)
 
@@ -72,10 +69,10 @@ while x<=1:
             center_x=0
             center_y=0
         
-        result = cv2.pointPolygonTest(frame, (center_x, center_y), False)
-
-        if result == 1:
-            cv2.circle(frame, (center_x, center_y), 5, (0, 0, 255), -1)
+        if np.any(blue_mask[center_x-10:center_x+10, center_y-10:center_y+10] == 0):
+            if red_mask[center_x, center_y] == 0:
+                cv2.circle(frame, (center_x, center_y), 5, (0, 0, 255), -1)
+            #print(center_x, center_y)
     
     # Calculate the center of the lens
     lens_center_x = int(frame.shape[1] / 2)
