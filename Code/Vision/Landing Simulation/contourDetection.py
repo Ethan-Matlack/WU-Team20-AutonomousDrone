@@ -107,15 +107,15 @@ while True:
     # TODO: This is horrendously slow, but conceptually correct. Needs to be totally reworked for efficiency.
     # TODO: Need to fit linear curves to each of these sets of points, then find intersection
     # This is currently roughly 2FPS with only the northSouth contour checker enabled
-    # contours_northSouth = \
-    #     contour_compare(contours_cyan, contours_black, clustering_distance) + \
-    #     contour_compare(contours_magenta, contours_yellow, clustering_distance)
-    # contours_eastWest = \
-    #     contour_compare(contours_cyan, contours_magenta, clustering_distance) + \
-    #     contour_compare(contours_black, contours_yellow, clustering_distance)
+    contours_northSouth = \
+        contour_compare(contours_cyan, contours_black, clustering_distance) + \
+        contour_compare(contours_magenta, contours_yellow, clustering_distance)
+    contours_eastWest = \
+        contour_compare(contours_cyan, contours_magenta, clustering_distance) + \
+        contour_compare(contours_black, contours_yellow, clustering_distance)
 
     # Display the resulting image
-    # display_cardinal_markers()
+    display_cardinal_markers()
     cv.imshow("All Contours", frame_contours_bgr)
     print("Refreshed!")
 
