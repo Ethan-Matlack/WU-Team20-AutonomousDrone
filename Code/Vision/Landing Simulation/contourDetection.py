@@ -2,7 +2,7 @@ import cv2 as cv
 import numpy as np
 
 
-def contour_compare(contour_list_a, contour_list_b, search_radius):
+def contour_compare(contour_list_a, contour_list_b, search_radius, mask_threshold):
     contour_list_common = []
     for contour_a in contour_list_a:
         contour_a = cv.approxPolyDP(contour_a, 30, False)
@@ -12,9 +12,21 @@ def contour_compare(contour_list_a, contour_list_b, search_radius):
                 for point_b in contour_b:
                     if abs(point_a[0][0] - point_b[0][0]) < search_radius:
                         if abs(point_a[0][1] - point_b[0][1]) < search_radius:
-                            avg_x = round((point_a[0][0] + point_b[0][0]) / 2)
-                            avg_y = round((point_a[0][1] + point_b[0][1]) / 2)
-                            contour_list_common.append((avg_x, avg_y))
+                            # Rejects points that fall near the edge of the mask
+                            # neighbors = np.array([[point_a[0][0], point_a[0][1] - search_radius],
+                            #                       [point_a[0][0], point_a[0][1] + search_radius],
+                            #                       [point_a[0][0] + search_radius, point_a[0][1]],
+                            #                       [point_a[0][0] - search_radius, point_a[0][1]]])
+                            # flag = 0
+                            # for neighbor in neighbors:
+                            #     if (neighbor[0] - 1) > mask_all.shape[0] or (neighbor[1] - 1) > mask_all.shape[1]:
+                            #         break
+                            #     if mask_all[neighbor[0] - 1, neighbor[1] - 1] > mask_threshold:
+                            #         flag = flag + 1
+                            # if flag == 4:
+                                avg_x = round((point_a[0][0] + point_b[0][0]) / 2)
+                                avg_y = round((point_a[0][1] + point_b[0][1]) / 2)
+                                contour_list_common.append((avg_x, avg_y))
     return contour_list_common
 
 
@@ -32,6 +44,7 @@ def display_cardinal_markers():
 
 
 clustering_distance = 30
+contour_validity_mask_threshold = 200
 
 # Define the ranges of each color in HSV
 cyan_lower = np.array([80, 100, 100])
@@ -45,9 +58,6 @@ magenta_upper2 = np.array([179, 255, 255])
 black_lower = np.array([0, 0, 0])
 black_upper = np.array([255, 255, 90])
 
-# Importing a 1000x500px image
-# frame_raw = cv.imread('TrainingImages/Simulated/CMYK_on_WhiteBG.png', cv.IMREAD_UNCHANGED)
-
 # Initializing the webcam
 capture = cv.VideoCapture(0)
 
@@ -60,11 +70,12 @@ while True:
 
     # Create masks for each color
     mask_cyan = cv.inRange(frame_hsv, cyan_lower, cyan_upper)
-    mask_yellow = cv.inRange(frame_hsv, yellow_lower, yellow_upper)
     mask_magenta1 = cv.inRange(frame_hsv, magenta_lower1, magenta_upper1)
     mask_magenta2 = cv.inRange(frame_hsv, magenta_lower2, magenta_upper2)
     mask_magenta = cv.bitwise_or(mask_magenta1, mask_magenta2)
+    mask_yellow = cv.inRange(frame_hsv, yellow_lower, yellow_upper)
     mask_black = cv.inRange(frame_hsv, black_lower, black_upper)
+    mask_all = cv.bitwise_or(cv.bitwise_or(mask_cyan, mask_magenta), cv.bitwise_or(mask_yellow, mask_black))
 
     # Blur each mask to aid contour detection
     gaussian_blur_stddev_x = 19
@@ -106,19 +117,17 @@ while True:
     cv.drawContours(frame_contours_bgr, contours_black,   -1, (43,   38,  34), 2)
 
     # Create the new sets of contours that define the cardinal directions relative to the pad
-    # TODO: This is horrendously slow, but conceptually correct. Needs to be totally reworked for efficiency.
-    # TODO: Need to fit linear curves to each of these sets of points, then find intersection
-    # This is currently roughly 2FPS with only the northSouth contour checker enabled
     contours_northSouth = \
-        contour_compare(contours_cyan, contours_black, clustering_distance) + \
-        contour_compare(contours_magenta, contours_yellow, clustering_distance)
+        contour_compare(contours_cyan, contours_black, clustering_distance, contour_validity_mask_threshold) + \
+        contour_compare(contours_magenta, contours_yellow, clustering_distance, contour_validity_mask_threshold)
     contours_eastWest = \
-        contour_compare(contours_cyan, contours_magenta, clustering_distance) + \
-        contour_compare(contours_black, contours_yellow, clustering_distance)
+        contour_compare(contours_cyan, contours_magenta, clustering_distance, contour_validity_mask_threshold) + \
+        contour_compare(contours_black, contours_yellow, clustering_distance, contour_validity_mask_threshold)
 
     # Display the resulting image
     display_cardinal_markers()
     cv.imshow("All Contours", frame_contours_bgr)
+    cv.imshow("Combined Mask", mask_all)
     print("Refreshed!")
 
     # Press "k" to quit
