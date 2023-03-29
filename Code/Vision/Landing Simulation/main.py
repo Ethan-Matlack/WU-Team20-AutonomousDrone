@@ -62,11 +62,11 @@ class GFG:
         self.canvas.move(self.rect_magenta, self.x_vel, self.y_vel)
         self.canvas.move(self.rect_yellow, self.x_vel, self.y_vel)
         self.canvas.move(self.rect_black, self.x_vel, self.y_vel)
-        self.canvas.coords(self.line_to_center,
-                           self.canvas.coords(self.line_to_center)[0] + self.x_vel,
-                           self.canvas.coords(self.line_to_center)[1] + self.y_vel,
-                           self.canvas.winfo_width() / 2,
-                           self.canvas.winfo_height() / 2)
+        # self.canvas.coords(self.line_to_center,
+        #                    self.canvas.coords(self.line_to_center)[0] + self.x_vel,
+        #                    self.canvas.coords(self.line_to_center)[1] + self.y_vel,
+        #                    self.canvas.winfo_width() / 2,
+        #                    self.canvas.winfo_height() / 2)
 
         # Check if the object has hit the bounds of the window. If so, invert direction.
         if (
