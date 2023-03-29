@@ -2,33 +2,19 @@ import cv2 as cv
 import numpy as np
 
 
-# def contour_compare(contour_list_a, contour_list_b, search_radius):
-#     contour_list_common = []
-#     for contour_a in contour_list_a:
-#         for contour_b in contour_list_b:
-#             for point_a in contour_a:
-#                 for point_b in contour_b:
-#                     if abs(point_a[0][0] - point_b[0][0]) < search_radius:
-#                         if abs(point_a[0][1] - point_b[0][1]) < search_radius:
-#                             avg_x = round((point_a[0][0] + point_b[0][0]) / 2)
-#                             avg_y = round((point_a[0][1] + point_b[0][1]) / 2)
-#                             contour_list_common.append((avg_x, avg_y))
-#     return contour_list_common
-
-
-def contour_compare_optimal(contour_list_a, contour_list_b, search_radius):
-    a = np.array(contour_list_a)
-    b = np.array(contour_list_b)
-    a_x = a[:, :, 0]
-    a_y = a[:, :, 1]
-    b_x = b[:, :, 0]
-    b_y = b[:, :, 1]
-    mask = np.abs(a_x[:, :, np.newaxis] - b_x[np.newaxis, :, :]) < search_radius
-    mask &= np.abs(a_y[:, :, np.newaxis] - b_y[np.newaxis, :, :]) < search_radius
-    common_points = np.where(mask)
-    avg_x = np.round((a_x[common_points] + b_x[common_points]) / 2).astype(int)
-    avg_y = np.round((a_y[common_points] + b_y[common_points]) / 2).astype(int)
-    contour_list_common = list(zip(avg_x, avg_y))
+def contour_compare(contour_list_a, contour_list_b, search_radius):
+    contour_list_common = []
+    for contour_a in contour_list_a:
+        contour_a = cv.approxPolyDP(contour_a, 30, False)
+        for contour_b in contour_list_b:
+            contour_b = cv.approxPolyDP(contour_b, 30, False)
+            for point_a in contour_a:
+                for point_b in contour_b:
+                    if abs(point_a[0][0] - point_b[0][0]) < search_radius:
+                        if abs(point_a[0][1] - point_b[0][1]) < search_radius:
+                            avg_x = round((point_a[0][0] + point_b[0][0]) / 2)
+                            avg_y = round((point_a[0][1] + point_b[0][1]) / 2)
+                            contour_list_common.append((avg_x, avg_y))
     return contour_list_common
 
 
@@ -56,8 +42,8 @@ magenta_lower1 = np.array([0, 100, 100])
 magenta_upper1 = np.array([10, 255, 255])
 magenta_lower2 = np.array([160, 100, 100])
 magenta_upper2 = np.array([179, 255, 255])
-black_lower = np.array([0, 100, 0])
-black_upper = np.array([255, 255, 40])
+black_lower = np.array([0, 0, 0])
+black_upper = np.array([255, 255, 90])
 
 # Importing a 1000x500px image
 # frame_raw = cv.imread('TrainingImages/Simulated/CMYK_on_WhiteBG.png', cv.IMREAD_UNCHANGED)
@@ -119,18 +105,16 @@ while True:
     cv.drawContours(frame_contours_bgr, contours_yellow,  -1, (24,  208, 255), 2)
     cv.drawContours(frame_contours_bgr, contours_black,   -1, (43,   38,  34), 2)
 
-    
-
     # Create the new sets of contours that define the cardinal directions relative to the pad
     # TODO: This is horrendously slow, but conceptually correct. Needs to be totally reworked for efficiency.
     # TODO: Need to fit linear curves to each of these sets of points, then find intersection
     # This is currently roughly 2FPS with only the northSouth contour checker enabled
     contours_northSouth = \
-        contour_compare_optimal(contours_cyan, contours_black, clustering_distance) + \
-        contour_compare_optimal(contours_magenta, contours_yellow, clustering_distance)
+        contour_compare(contours_cyan, contours_black, clustering_distance) + \
+        contour_compare(contours_magenta, contours_yellow, clustering_distance)
     contours_eastWest = \
-        contour_compare_optimal(contours_cyan, contours_magenta, clustering_distance) + \
-        contour_compare_optimal(contours_black, contours_yellow, clustering_distance)
+        contour_compare(contours_cyan, contours_magenta, clustering_distance) + \
+        contour_compare(contours_black, contours_yellow, clustering_distance)
 
     # Display the resulting image
     display_cardinal_markers()
