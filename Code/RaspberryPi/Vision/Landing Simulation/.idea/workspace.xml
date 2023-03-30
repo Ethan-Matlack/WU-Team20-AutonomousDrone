@@ -4,7 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="6c5a746c-218f-4eb6-a815-ff31de75b44a" name="Changes" comment="Changed algos for some funcs" />
+    <list default="true" id="6c5a746c-218f-4eb6-a815-ff31de75b44a" name="Changes" comment="Added intersection detection">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/contourDetection.py" beforeDir="false" afterPath="$PROJECT_DIR$/contourDetection.py" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -19,19 +22,6 @@
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/../../.." />
-  </component>
-  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
-  "lastFilter": {
-    "state": "OPEN"
-  }
-}]]></component>
-  <component name="GithubPullRequestsUISettings">
-    <option name="selectedUrlAndAccountId">
-      <UrlAndAccount>
-        <option name="accountId" value="7e694a49-180c-4e2b-b5bd-93e7058d4e3b" />
-        <option name="url" value="https://github.com/Ethan-Matlack/WU-Team20-AutonomousDrone.git" />
-      </UrlAndAccount>
-    </option>
   </component>
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
@@ -80,38 +70,12 @@
       <option name="project" value="LOCAL" />
       <updated>1680143910632</updated>
     </task>
-    <task id="LOCAL-00003" summary="Changed some algos for some of the funcs">
-      <created>1680150431564</created>
-      <option name="number" value="00003" />
-      <option name="presentableId" value="LOCAL-00003" />
-      <option name="project" value="LOCAL" />
-      <updated>1680150431564</updated>
-    </task>
-    <task id="LOCAL-00004" summary="Changed some algos for some of the funcs">
-      <created>1680150462002</created>
-      <option name="number" value="00004" />
-      <option name="presentableId" value="LOCAL-00004" />
-      <option name="project" value="LOCAL" />
-      <updated>1680150462002</updated>
-    </task>
-    <option name="localTasksCounter" value="5" />
+    <option name="localTasksCounter" value="3" />
     <servers />
-  </component>
-  <component name="Vcs.Log.Tabs.Properties">
-    <option name="TAB_STATES">
-      <map>
-        <entry key="MAIN">
-          <value>
-            <State />
-          </value>
-        </entry>
-      </map>
-    </option>
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Started outside point filtering algo" />
     <MESSAGE value="Added intersection detection" />
-    <MESSAGE value="Changed some algos for some of the funcs" />
-    <option name="LAST_COMMIT_MESSAGE" value="Changed some algos for some of the funcs" />
+    <option name="LAST_COMMIT_MESSAGE" value="Added intersection detection" />
   </component>
 </project>
