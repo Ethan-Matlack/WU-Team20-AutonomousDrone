@@ -4,15 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="6c5a746c-218f-4eb6-a815-ff31de75b44a" name="Changes" comment="Added intersection detection">
-      <change beforePath="$PROJECT_DIR$/../Tests/.idea/.gitignore" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Tests/.idea/Tests.iml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Tests/.idea/inspectionProfiles/profiles_settings.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Tests/.idea/misc.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Tests/.idea/modules.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Tests/.idea/vcs.xml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/../Tests/main.py" beforeDir="false" />
-    </list>
+    <list default="true" id="6c5a746c-218f-4eb6-a815-ff31de75b44a" name="Changes" comment="Added intersection detection" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
