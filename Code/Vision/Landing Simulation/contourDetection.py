@@ -24,9 +24,9 @@ def contour_compare(contour_list_a, contour_list_b, search_radius, mask_threshol
                             #     if mask_all[neighbor[0] - 1, neighbor[1] - 1] > mask_threshold:
                             #         flag = flag + 1
                             # if flag == 4:
-                                avg_x = round((point_a[0][0] + point_b[0][0]) / 2)
-                                avg_y = round((point_a[0][1] + point_b[0][1]) / 2)
-                                contour_list_common.append((avg_x, avg_y))
+                            avg_x = round((point_a[0][0] + point_b[0][0]) / 2)
+                            avg_y = round((point_a[0][1] + point_b[0][1]) / 2)
+                            contour_list_common.append((avg_x, avg_y))
     return contour_list_common
 
 
@@ -45,18 +45,20 @@ def display_cardinal_markers():
 
 clustering_distance = 30
 contour_validity_mask_threshold = 200
+norm_vect_scale_factor = 200
+bestfitline_points = []
 
-# Define the ranges of each color in HSV
+# Define the ranges of each color in HSV. Color space is [0-180, 0-255, 0-255]
 cyan_lower = np.array([80, 100, 100])
 cyan_upper = np.array([130, 255, 255])
-yellow_lower = np.array([20, 100, 100])
-yellow_upper = np.array([40, 255, 255])
 magenta_lower1 = np.array([0, 100, 100])
 magenta_upper1 = np.array([10, 255, 255])
 magenta_lower2 = np.array([160, 100, 100])
-magenta_upper2 = np.array([179, 255, 255])
+magenta_upper2 = np.array([180, 255, 255])
+yellow_lower = np.array([20, 100, 100])
+yellow_upper = np.array([40, 255, 255])
 black_lower = np.array([0, 0, 0])
-black_upper = np.array([255, 255, 90])
+black_upper = np.array([180, 100, 70])
 
 # Initializing the webcam
 capture = cv.VideoCapture(0)
@@ -64,6 +66,8 @@ capture = cv.VideoCapture(0)
 while True:
     # Read in the camera frame by frame
     ret, frame_raw = capture.read()
+    # frame_raw = cv.imread('TrainingImages/Real/CMYK_againstWall.jpg')
+    # frame_raw = cv.imread('TrainingImages/Simulated/CMYK_on_WhiteBG.png')
 
     # Convert the frame out of BGR to HSV
     frame_hsv = cv.cvtColor(frame_raw, cv.COLOR_BGR2HSV)
@@ -84,51 +88,111 @@ while True:
     mask_magenta = cv.GaussianBlur(mask_magenta, (gaussian_blur_stddev_x, gaussian_blur_stddev_y), 0)
     mask_yellow = cv.GaussianBlur(mask_yellow, (gaussian_blur_stddev_x, gaussian_blur_stddev_y), 0)
     mask_black = cv.GaussianBlur(mask_black, (gaussian_blur_stddev_x, gaussian_blur_stddev_y), 0)
+    mask_all = cv.GaussianBlur(mask_all, (gaussian_blur_stddev_x, gaussian_blur_stddev_y), 0)
 
-    cv.namedWindow("All Masks", cv.WINDOW_NORMAL)
-    cv.resizeWindow("All Masks", int(frame_raw.shape[1]), int(frame_raw.shape[0]))
-    cv.imshow("All Masks", np.vstack((np.hstack((mask_magenta, mask_yellow)), np.hstack((mask_cyan, mask_black)))))
+    # cv.namedWindow("All Masks", cv.WINDOW_NORMAL)
+    # cv.resizeWindow("All Masks", int(frame_raw.shape[1]), int(frame_raw.shape[0]))
+    # cv.imshow("All Masks", np.vstack((
+    #     np.hstack((mask_magenta, mask_yellow)),
+    #     np.hstack((mask_cyan, mask_black)))))
 
+    # TODO: Explore replacing this with AdaptiveThreshold instead of Canny. Should handle the dynamic range of varying
+    #  lighting conditions better. Also should allow us to loosen up the color mask bounds.
     # Detect edges for each color mask
     edges_cyan = cv.Canny(image=mask_cyan, threshold1=200, threshold2=230)
     edges_magenta = cv.Canny(image=mask_magenta, threshold1=200, threshold2=230)
     edges_yellow = cv.Canny(image=mask_yellow, threshold1=200, threshold2=230)
     edges_black = cv.Canny(image=mask_black, threshold1=200, threshold2=230)
 
-    cv.namedWindow("All Edges", cv.WINDOW_NORMAL)
-    cv.resizeWindow("All Edges", int(frame_raw.shape[1]), int(frame_raw.shape[0]))
-    cv.imshow("All Edges", np.vstack((np.hstack((edges_magenta, edges_yellow)), np.hstack((edges_cyan, edges_black)))))
+    # cv.namedWindow("All Edges", cv.WINDOW_NORMAL)
+    # cv.resizeWindow("All Edges", int(frame_raw.shape[1]), int(frame_raw.shape[0]))
+    # cv.imshow("All Edges", np.vstack((
+    #     np.hstack((edges_magenta, edges_yellow)),
+    #     np.hstack((edges_cyan, edges_black)))))
 
-    # TODO: This flag should probably be re-evaluated. External may not be correct.
     contours_cyan, hierarchy_cyan = cv.findContours(edges_cyan, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
     contours_magenta, hierarchy_magenta = cv.findContours(edges_magenta, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
     contours_yellow, hierarchy_yellow = cv.findContours(edges_yellow, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
     contours_black, hierarchy_black = cv.findContours(edges_black, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
 
-    # Create a blank white canvas
-    frame_contours_bgr = np.zeros_like(frame_hsv)
-    frame_contours_bgr.fill(255)
+    contours_cyan = sorted(contours_cyan, key=cv.contourArea, reverse=True)
+    contours_magenta = sorted(contours_magenta, key=cv.contourArea, reverse=True)
+    contours_yellow = sorted(contours_yellow, key=cv.contourArea, reverse=True)
+    contours_black = sorted(contours_black, key=cv.contourArea, reverse=True)
+
+    # Create a blank white canvas of the same size as the HSV frame
+    frame_contours_bgr = np.full_like(frame_hsv, 255)
 
     # Draw the contours in their respective colors on the frame
     # The colors of the contours below have to be in BGR format
-    cv.drawContours(frame_contours_bgr, contours_cyan,    -1, (205, 149,   0), 2)
-    cv.drawContours(frame_contours_bgr, contours_magenta, -1, (78,   31, 162), 2)
-    cv.drawContours(frame_contours_bgr, contours_yellow,  -1, (24,  208, 255), 2)
-    cv.drawContours(frame_contours_bgr, contours_black,   -1, (43,   38,  34), 2)
+    if contours_cyan:
+        cv.drawContours(frame_contours_bgr, contours_cyan[0:10],    -1, (205, 149,   0), 2)
+    if contours_magenta:
+        cv.drawContours(frame_contours_bgr, contours_magenta[0:10], -1, (78,   31, 162), 2)
+    if contours_yellow:
+        cv.drawContours(frame_contours_bgr, contours_yellow[0:10],  -1, (24,  208, 255), 2)
+    if contours_black:
+        cv.drawContours(frame_contours_bgr, contours_black[0:10],   -1, (43,   38,  34), 2)
 
     # Create the new sets of contours that define the cardinal directions relative to the pad
     contours_northSouth = \
-        contour_compare(contours_cyan, contours_black, clustering_distance, contour_validity_mask_threshold) + \
-        contour_compare(contours_magenta, contours_yellow, clustering_distance, contour_validity_mask_threshold)
+        contour_compare(contours_cyan, contours_black,
+                        clustering_distance, contour_validity_mask_threshold) + \
+        contour_compare(contours_magenta, contours_yellow,
+                        clustering_distance, contour_validity_mask_threshold)
     contours_eastWest = \
-        contour_compare(contours_cyan, contours_magenta, clustering_distance, contour_validity_mask_threshold) + \
-        contour_compare(contours_black, contours_yellow, clustering_distance, contour_validity_mask_threshold)
+        contour_compare(contours_cyan, contours_magenta,
+                        clustering_distance, contour_validity_mask_threshold) + \
+        contour_compare(contours_black, contours_yellow,
+                        clustering_distance, contour_validity_mask_threshold)
+
+    # If the contours exist, fit a line of best fit to each of them using the least square method
+    if contours_northSouth and contours_eastWest:
+        [ns_vx, ns_vy, ns_x1, ns_y1] = cv.fitLine(np.array(contours_northSouth), cv.DIST_L2, 0, 0.01, 0.01)
+        [ew_vx, ew_vy, ew_x1, ew_y1] = cv.fitLine(np.array(contours_eastWest), cv.DIST_L2, 0, 0.01, 0.01)
+        cv.circle(frame_contours_bgr, (int(ns_x1), int(ns_y1)), 10, (0, 255, 0), 2)
+        cv.circle(frame_contours_bgr, (int(ew_x1), int(ew_y1)), 10, (0, 255, 0), 2)
+
+        # TODO: This entire bit can be optimized. Intersect points can be calculated directly from the two fitLines.
+        #  No need to used scaled norm vectors as intermediaries. Also, display funcs should be separated from those
+        #  that are essential to the runtime calculation.
+        # The following function is used to calculate the lines
+        # (x, y) = (x0, y0) + t * (vx, vy), where t is the bounding values
+        ns_x2 = (norm_vect_scale_factor * ns_vx) + ns_x1
+        ns_y2 = (norm_vect_scale_factor * ns_vy) + ns_y1
+        ew_x2 = (norm_vect_scale_factor * ew_vx) + ew_x1
+        ew_y2 = (norm_vect_scale_factor * ew_vy) + ew_y1
+
+        cv.line(frame_contours_bgr, (int(ns_x1), int(ns_y1)), (int(ns_x2), int(ns_y2)), (0, 255, 0), 3)
+        cv.line(frame_contours_bgr, (int(ew_x1), int(ew_y1)), (int(ew_x2), int(ew_y2)), (0, 255, 0), 3)
+
+        # TODO: Need to change this algo such that it calculates a line from points on both sides of the image. In
+        #  cases where the camera is offset, it creates a distorted image, whereby referencing only one side (ex. only
+        #  the Black/Yellow border when the camera is "low") the line becomes angled, which changes the intersection
+        #  point and also creates a non-perpendicular relationship.
+        # Calculate the intersection of the lines. Solves the denominator first. If zero, this is an edge case  where
+        # the lines are parallel, and we shouldn't calculate the intersection point.
+        denominator = ((ns_x1 - ns_x2) * (ew_y1 - ew_y2)) - ((ns_y1 - ns_y2) * (ew_x1 - ew_x2))
+        intersect_x = 0
+        intersect_y = 0
+        if denominator != 0:
+            # Calculate some common elements that are shared between the following functions for speed
+            elem1 = (ns_x1 * ns_y2) - (ns_y1 * ns_x2)
+            elem2 = (ew_x1 * ew_y2) - (ew_y1 * ew_x2)
+            # Calculate the (x,y) intersection point between the two lines
+            intersect_x = ((elem1 * (ew_x1 - ew_x2)) - ((ns_x1 - ns_x2) * elem2)) / denominator
+            intersect_y = ((elem1 * (ew_y1 - ew_y2)) - ((ns_y1 - ns_y2) * elem2)) / denominator
+            # Display the intersection point as a circle on the image
+            cv.circle(frame_contours_bgr, (int(intersect_x), int(intersect_y)), 10, (0, 255, 0), -1)
+            # Display the intersection coordinates as text on the image
+            intersect_text = f"x: {int(intersect_x)}, y: {int(intersect_y)}"
+            cv.putText(frame_contours_bgr, intersect_text, (25, 25), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
 
     # Display the resulting image
-    display_cardinal_markers()
+    # display_cardinal_markers()
     cv.imshow("All Contours", frame_contours_bgr)
-    cv.imshow("Combined Mask", mask_all)
-    print("Refreshed!")
+    # cv.imshow("Merged Mask", mask_all)
+    # print("Refreshed!")
 
     # Press "k" to quit
     if cv.waitKey(27) == ord('k'):
