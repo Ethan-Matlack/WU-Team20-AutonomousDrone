@@ -4,7 +4,11 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="6c5a746c-218f-4eb6-a815-ff31de75b44a" name="Changes" comment="Added intersection detection" />
+    <list default="true" id="6c5a746c-218f-4eb6-a815-ff31de75b44a" name="Changes" comment="Restored">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Output.avi" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/contourDetection.py" beforeDir="false" afterPath="$PROJECT_DIR$/contourDetection.py" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -68,7 +72,21 @@
       <option name="project" value="LOCAL" />
       <updated>1680143910632</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="Post fix">
+      <created>1680154334519</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1680154334519</updated>
+    </task>
+    <task id="LOCAL-00004" summary="Restored">
+      <created>1680154349414</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1680154349414</updated>
+    </task>
+    <option name="localTasksCounter" value="5" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -88,6 +106,8 @@
     </ignored-roots>
     <MESSAGE value="Started outside point filtering algo" />
     <MESSAGE value="Added intersection detection" />
-    <option name="LAST_COMMIT_MESSAGE" value="Added intersection detection" />
+    <MESSAGE value="Post fix" />
+    <MESSAGE value="Restored" />
+    <option name="LAST_COMMIT_MESSAGE" value="Restored" />
   </component>
 </project>

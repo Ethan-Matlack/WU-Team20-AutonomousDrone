@@ -52,7 +52,7 @@ black_upper = np.array([179, 100, 70])
 # Initializing the webcam
 # capture = cv.VideoCapture(0)
 capture = cv.VideoCapture('TrainingImages/Real/TestIndoors_960x540_15fps.mp4')
-output = cv.VideoWriter('Output.avi', cv.VideoWriter_fourcc('M', 'J', 'P', 'G'), 15, (960, 540))
+output = cv.VideoWriter('Output/Output.avi', cv.VideoWriter_fourcc('M', 'J', 'P', 'G'), 15, (960, 540))
 
 while capture.isOpened():
     # Read in the camera frame by frame
