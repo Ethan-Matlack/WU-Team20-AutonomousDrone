@@ -1,8 +1,9 @@
 import cv2 as cv
 import numpy as np
+import time
 
 
-def contour_compare(contour_list_a, contour_list_b, search_radius, mask_threshold):
+def contour_compare(contour_list_a, contour_list_b, search_radius):
     contour_list_common = []
     for contour_a in contour_list_a:
         # TODO: Evaluated whether or not approximating to open (False) or closed (True) contours is better
@@ -32,10 +33,14 @@ def display_cardinal_markers():
                          color=(0, 255, 0), thickness=2)
 
 
-clustering_distance = 30
-contour_validity_mask_threshold = 200
+clustering_distance = 20
 norm_vect_scale_factor = 200
 bestfitline_points = []
+intersects_x = []
+intersects_y = []
+weights = []
+weight = 1
+text_fps = ""
 
 # Define the ranges of each color in HSV. Color space is [0-179, 0-255, 0-255]
 cyan_lower = np.array([80, 100, 100])
@@ -47,21 +52,28 @@ magenta_upper2 = np.array([179, 255, 255])
 yellow_lower = np.array([20, 100, 100])
 yellow_upper = np.array([40, 255, 255])
 black_lower = np.array([0, 0, 0])
-black_upper = np.array([179, 100, 70])
+black_upper = np.array([179, 150, 90])
 
 # Initializing the webcam
-# capture = cv.VideoCapture(0)
-capture = cv.VideoCapture('TrainingImages/Real/TestIndoors_960x540_15fps.mp4')
-output = cv.VideoWriter('Output/Output.avi', cv.VideoWriter_fourcc('M', 'J', 'P', 'G'), 15, (960, 540))
+capture = cv.VideoCapture(1)
+print("Warming up camera...")
+time.sleep(3)
+
+# capture = cv.VideoCapture('TrainingImages/real/video/TestIndoors_960x540_15fps.mp4')
+# output = cv.VideoWriter('Output/Output.avi', cv.VideoWriter_fourcc('M', 'J', 'P', 'G'), 15, (640, 480))
+
+start_time = time.time()
+time_x = 1  # displays the frame rate every 1 second
+time_counter = 0
 
 while capture.isOpened():
+
     # Read in the camera frame by frame
     ret, frame_raw = capture.read()
-    # frame_raw = cv.imread('TrainingImages/Real/CMYK_againstWall.jpg')
     # frame_raw = cv.imread('TrainingImages/Simulated/CMYK_on_WhiteBG.png')
 
     # Convert the frame out of BGR to HSV
-    frame_hsv = cv.cvtColor(cv.resize(frame_raw, (960, 540)), cv.COLOR_BGR2HSV)
+    frame_hsv = cv.resize(cv.cvtColor(frame_raw, cv.COLOR_BGR2HSV), (640, 480))
 
     # Create masks for each color
     mask_cyan = cv.inRange(frame_hsv, cyan_lower, cyan_upper)
@@ -122,15 +134,11 @@ while capture.isOpened():
 
     # Create the new sets of contours that define the cardinal directions relative to the pad
     contours_northSouth = \
-        contour_compare(contours_cyan, contours_black,
-                        clustering_distance, contour_validity_mask_threshold) + \
-        contour_compare(contours_magenta, contours_yellow,
-                        clustering_distance, contour_validity_mask_threshold)
+        contour_compare(contours_cyan, contours_black, clustering_distance) + \
+        contour_compare(contours_magenta, contours_yellow, clustering_distance)
     contours_eastWest = \
-        contour_compare(contours_cyan, contours_magenta,
-                        clustering_distance, contour_validity_mask_threshold) + \
-        contour_compare(contours_black, contours_yellow,
-                        clustering_distance, contour_validity_mask_threshold)
+        contour_compare(contours_cyan, contours_magenta, clustering_distance) + \
+        contour_compare(contours_black, contours_yellow, clustering_distance)
 
     # If the contours exist, fit a line of best fit to each of them using the least square method
     # ^^^ Temporarily switched to Huber method to hopefully expel the outliers more effectively
@@ -167,22 +175,47 @@ while capture.isOpened():
             # Calculate the (x,y) intersection point between the two lines
             intersect_x = ((elem1 * (ew_x1 - ew_x2)) - ((ns_x1 - ns_x2) * elem2)) / denominator
             intersect_y = ((elem1 * (ew_y1 - ew_y2)) - ((ns_y1 - ns_y2) * elem2)) / denominator
-            # Display the intersection point as a circle on the image
-            cv.circle(frame_contours_bgr, (int(intersect_x), int(intersect_y)), 10, (0, 255, 0), -1)
-            # Display the intersection coordinates as text on the image
-            intersect_text = f"x: {int(intersect_x)}, y: {int(intersect_y)}"
-            cv.putText(frame_contours_bgr, intersect_text, (25, 25), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+
+            if 0 < intersect_x < frame_contours_bgr.shape[0] and 0 < intersect_y < frame_contours_bgr.shape[1]:
+
+                intersects_x.insert(0, intersect_x)
+                intersects_y.insert(0, intersect_y)
+
+                # TODO: The weights eventually overflow to infinity. This needs fixed before deployment!!!
+                weights.insert(0, weight)
+                weight = weight + weight*0.5  # Change this function to skew the weighting
+
+                lookback = None
+
+                weighted_intersect_x = np.average(intersects_x[:lookback], weights=weights[:lookback], axis=0)
+                weighted_intersect_y = np.average(intersects_y[:lookback], weights=weights[:lookback], axis=0)
+
+                # Display the intersection point as a circle on the image
+                cv.circle(frame_contours_bgr, (int(weighted_intersect_x), int(weighted_intersect_y)), 10, (0, 0, 255), -1)
+                # Display the intersection coordinates as text on the image
+                text_intersect = f"x: {int(weighted_intersect_x)}, y: {int(weighted_intersect_y)}"
+                text_contours = f"N-S: {len(contours_northSouth)}. E-W: {len(contours_eastWest)}"
+                cv.putText(frame_contours_bgr, text_intersect, (25, 25), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                cv.putText(frame_contours_bgr, text_contours, (25, 50), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                cv.putText(frame_contours_bgr, text_fps, (25, 75), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+
+    time_counter += 1
+    if (time.time() - start_time) > time_x:
+        text_fps = f"FPS: {time_counter / (time.time() - start_time)}"
+        time_counter = 0
+        start_time = time.time()
 
     # Display the resulting image
-    display_cardinal_markers()
+    # display_cardinal_markers()
     cv.imshow("All Contours", frame_contours_bgr)
-    output.write(frame_contours_bgr)
-    # print(f"N-S points: {len(contours_northSouth)}. E-W points: {len(contours_eastWest)}")
-    # cv.imshow("Merged Mask", mask_all)
+    cv.imshow("Raw Image", frame_raw)
+    cv.imshow("Combined Mask", mask_all)
+    # output.write(frame_contours_bgr)
 
     # Press "k" to quit
     if cv.waitKey(27) == ord('k'):
         capture.release()
-        output.release()
+        # output.release()
         cv.destroyAllWindows()
         break
+

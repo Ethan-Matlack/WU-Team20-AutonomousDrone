@@ -5,8 +5,17 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="6c5a746c-218f-4eb6-a815-ff31de75b44a" name="Changes" comment="Restored">
+      <change afterPath="$PROJECT_DIR$/color_gen_tester.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/image_train_loop.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/roboflow_model.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/saved_color.txt" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/yolo_model.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../../../CAD/Legs/ChargingArm.ipt" beforeDir="false" afterPath="$PROJECT_DIR$/../../../../CAD/Legs/ChargingArm.ipt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../../../CAD/Legs/ChargingArm.stl" beforeDir="false" afterPath="$PROJECT_DIR$/../../../../CAD/Legs/ChargingArm.stl" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../../../CAD/Legs/OldVersions/ChargingArm.0007.ipt" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Output.avi" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/TrainingImages/Real/TestIndoors_960x540_15fps.mp4" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/TrainingImages/Real/TestIndoors_960x540_60fps.mp4" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/contourDetection.py" beforeDir="false" afterPath="$PROJECT_DIR$/contourDetection.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -28,19 +37,22 @@
     <option name="stateVersion" value="1" />
   </component>
   <component name="ProjectId" id="2NbW1IjG1NaNLTZKP0yYjtFctpB" />
-  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true">
+    <ConfirmationsSetting value="2" id="Add" />
+  </component>
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "RunOnceActivity.OpenProjectViewOnStart": "true",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "last_opened_file_path": "C:/Users/Administrator/Documents/GitHub/WU-Team20-AutonomousDrone/Code/RaspberryPi/Vision/Landing Simulation",
-    "settings.editor.selected.configurable": "project.propVCSSupport.DirectoryMappings"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_ADD_EXTERNAL_FILES&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/Administrator/Documents/GitHub/WU-Team20-AutonomousDrone/Code/RaspberryPi/Vision/Landing Simulation&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;project.propVCSSupport.DirectoryMappings&quot;
   }
-}]]></component>
+}</component>
   <component name="PyConsoleOptionsProvider">
     <option name="myPythonConsoleState">
       <console-settings module-name="Landing Simulation" is-module-sdk="true">
@@ -101,6 +113,7 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
+    <option name="ADD_EXTERNAL_FILES_SILENTLY" value="true" />
     <ignored-roots>
       <path value="$PROJECT_DIR$/../../.." />
     </ignored-roots>
