@@ -50,8 +50,8 @@ magenta_lower2 = np.array([160, 100, 100])
 magenta_upper2 = np.array([179, 255, 255])
 yellow_lower = np.array([20, 150, 150])
 yellow_upper = np.array([40, 255, 255])
-black_lower = np.array([40, 40, 40])
-black_upper = np.array([179, 150, 150])
+black_lower = np.array([0, 0, 3])
+black_upper = np.array([130, 225, 105])
 
 # Initializing the webcam
 # capture = cv.VideoCapture(0)
@@ -60,6 +60,7 @@ black_upper = np.array([179, 150, 150])
 
 steps_per = 10
 path_root_images = r"C:\Users\Administrator\Documents\GitHub\WU-Team20-AutonomousDrone\Code\RaspberryPi\Vision\Landing Simulation\TrainingImages"
+#path_root_images = r"C:\Users\dimpl\OneDrive\Documents\GitHub\WU-Team20-AutonomousDrone\Code\RaspberryPi\Vision\Landing Simulation\TrainingImages"
 path_rel_real_cleaned = r"real\cleaned"
 path_rel_real_outdoor_shade = r"real\outdoor\shade"
 path_rel_real_outdoor_sun = r"real\outdoor\sun"
@@ -69,7 +70,7 @@ path_rel_real_mixed_veryclose = r"real\mixed_veryclose"
 path_rel_real_outdoor_mixed_overhead = r"real\outdoor\mixed_overhead"
 
 
-active_path = path_rel_real_mixed_veryclose
+active_path = path_rel_real_outdoor_sun
 
 break_flag = False
 
