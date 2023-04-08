@@ -45,16 +45,129 @@ class Color:
         self.hierarchy = hierarchy
 
 
-class Display:
-    def __init__(self, x=None, y=None, num_cnt_ns=None, num_cnt_ew=None, fps_count=None, angle=None):
+class Base:
 
-        self.x_intersect = x
-        self.y_intersect = y
-        self.number_contours_ns = num_cnt_ns
-        self.number_contours_ew = num_cnt_ew
-        self.fps = fps_count
-        self.angle_to_base = angle
+    def __init__(self):
 
+        # Initialize as undefined, then the helper functions can assign attributed as the program moves along.
+        # Some of these (num_cont) will be assigned directly in code and not via helper funcs.
+
+        self.ew_line = None
+        self.ns_line = None
+
+        self.ns_vx = None
+        self.ns_vy = None
+        self.ns_px = None
+        self.ns_py = None
+
+        self.ew_vx = None
+        self.ew_vy = None
+        self.ew_px = None
+        self.ew_py = None
+
+        self.heading = None
+        self.heading_accuracy = None
+
+        self.intersection = None
+
+        self.w_heading = None
+        self.w_intersect_x = None
+        self.w_intersect_y = None
+
+        self.num_cont_ns = None
+        self.num_cont_ew = None
+
+        # Historical list variables
+        self.heading_list = []
+        self.intersect_x_list = []
+        self.intersect_y_list = []
+
+    # Read in the best fit lines for the two contours
+    def read_lines(self, ns_line=None, ew_line=None):
+        # Bring in the point,vector lines
+        self.ns_line = ns_line
+        self.ew_line = ew_line
+
+        # We can only try to read these in once they get defined
+        # if (self.ns_line is not None) and (self.ew_line is not None):
+        # Brought in via ns_line
+        self.ns_vx = ns_line[0]
+        self.ns_vy = ns_line[1]
+        self.ns_px = ns_line[2]
+        self.ns_py = ns_line[3]
+
+        # Brought in via ew_line
+        self.ew_vx = ew_line[0]
+        self.ew_vy = ew_line[1]
+        self.ew_px = ew_line[2]
+        self.ew_py = ew_line[3]
+
+    # Calculate the (x,y) intersect of the lines representing the base center
+    def get_intersection(self):
+        print("get_intersection is called")
+
+        try:
+            # Calculate the intersection point for the two lines
+            ns1 = [int(self.ns_px), int(self.ns_py)]
+            ns2 = [int(self.ns_px + (200 * self.ns_vx)), int(self.ns_py + (200 * self.ns_vy))]
+            ew1 = [int(self.ew_px), int(self.ew_py)]
+            ew2 = [int(self.ew_px + (200 * self.ew_vx)), int(self.ew_py + (200 * self.ew_vy))]
+
+        # Handles the case where the values are not yet assigned
+        except AttributeError:
+            return None
+
+        self.intersection = line_intersection(ns1, ns2, ew1, ew2)
+        print(f"intersection: {self.intersection}")
+
+        return self.intersection
+
+    # Calculate the angular heading correction between camera frame and the base frame
+    def get_heading(self):
+        print("get_heading is called")
+        try:
+            angle_between = angle_between_lines(self.ns_vx, self.ns_vy, self.ew_vx, self.ew_vy)
+            self.heading_accuracy = 1 - abs(angle_between - np.pi/2)/(np.pi/2)
+
+        # Handles the case where the values are not yet assigned
+        except AttributeError:
+            return None
+
+        print(f"angle_between: {angle_between}, accuracy: {self.heading_accuracy}")
+        if 0.65 < self.heading_accuracy:
+            # Sums the unit vectors to create a new "average" vector that is halfway (angle-wise) between the two
+            uv_x = self.ns_vx + self.ew_vx
+            uv_y = self.ns_vy + self.ew_vy
+
+            # Checks the angle between the average unit vector and the x-axis
+            angle_2_x_axis = angle_between_lines(uv_x, uv_y, 0, 1)
+
+            # Since the calculated angle is the average of the two, the x-oriented vector is -45deg shifted.
+            self.heading = angle_2_x_axis - np.deg2rad(45)
+
+            # TODO: Correction into DRONE frame. Probably wrong.
+            # heading = heading_offset - np.deg2rad(90)
+
+        else:
+            self.heading = None
+
+        return self.heading
+
+    # Generate the weighted values for heading and intersect based on the weighting function
+    def gen_weighted_values(self, lookback_depth):
+
+        # Write the current values to the un-weighted list
+        self.heading_list.insert(0, self.heading[0])
+        self.intersect_x_list.insert(0, self.intersection[0])
+        self.intersect_y_list.insert(0, self.intersection[1])
+
+        # Use the un-weighted list to do a weighted average against the weights array
+        self.w_heading = \
+            np.average(self.heading_list[:lookback_depth], weights=weight_array[:lookback_depth])
+        self.w_intersect_x = \
+            np.average(self.intersect_x_list[:lookback_depth], weights=weight_array[:lookback_depth])
+        self.w_intersect_y = \
+            np.average(self.intersect_y_list[:lookback_depth], weights=weight_array[:lookback_depth])
 
 # ----------------------------------------------------------------------------------------------------------------------
 # FUNCTIONS
@@ -92,15 +205,10 @@ def contour_compare(contour_list_a, contour_list_b, search_radius):
 
 
 def angle_between_lines(uv1_x, uv1_y, uv2_x, uv2_y):
-    line_dot_product = uv1_x*uv2_x + uv1_y*uv2_y
-    # line1 = np.array([uv1_x, uv1_y])
-    # line2 = np.array([uv2_x, uv2_y])
-    # line_dot_product = np.dot(line1, line2)
-    # line_dot_product = line_dot_product[0][0] + line_dot_product[1][0]
-    # line1_mag = np.linalg.norm(line1)
-    # line2_mag = np.linalg.norm(line2)
-    # angle_between = np.arccos(line_dot_product / (line1_mag + line2_mag))
-    angle_between = np.arccos(line_dot_product / 2)
+    # Only accepts unit vectors for speed improvements.
+    # Change the "divide by 2" portion of the angle_between calc to "MagV1*MagV2" to generalize.
+    dot_product = uv1_x*uv2_x + uv1_y*uv2_y
+    angle_between = np.arccos(dot_product / 2)
     return angle_between
 
 
@@ -136,31 +244,8 @@ def line_intersection(p1, p2, p3, p4):
             return None
 
     except np.linalg.LinAlgError:
-        # print('No single intersection point detected')
+        print('No single intersection point detected')
         return None
-
-
-def get_base_heading(uv1_x, uv1_y, uv2_x, uv2_y):
-    angle_between = angle_between_lines(uv1_x, uv1_y, uv2_x, uv2_y)
-
-    if np.deg2rad(60) < angle_between < np.deg2rad(120):
-        # Sums the unit vectors to create a new "average" vector that is halfway (angle-wise) between the two
-        uv_x = uv1_x + uv2_x
-        uv_y = uv1_y + uv2_y
-
-        # Checks the angle between the average unit vector and the x-axis
-        angle_2_x_axis = angle_between_lines(uv_x, uv_y, 0, 1)
-
-        # Since the calculated angle is the average of the two, the x-oriented vector is -45deg shifted.
-        heading_offset = angle_2_x_axis - np.deg2rad(45)
-
-        # TODO: Correction into DRONE frame. Probably wrong.
-        # heading_offset = heading_offset - np.deg2rad(90)
-
-    else:
-        heading_offset = None
-
-    return heading_offset
 
 
 def generate_weight_array(length, flat_distance):
@@ -195,43 +280,55 @@ def generate_contours(color, gauss_blur_x, gauss_blur_y, canny_threshold1, canny
 
 def display_output():
 
-    latest_disp.x_intersect = int(latest_disp.x_intersect)
-    latest_disp.y_intersect = int(latest_disp.y_intersect)
+    if (base.w_intersect_x is not None) and (base.w_intersect_y is not None):
 
-    cv.circle(frame_contours_bgr,
-              (latest_disp.x_intersect, latest_disp.y_intersect),
-              10, (0, 0, 255), -1)
+        cv.circle(frame_contours_bgr,
+                  (int(base.w_intersect_x), int(base.w_intersect_y)),
+                  10, (0, 0, 255), -1)
 
-    cv.line(frame_contours_bgr,
-            (latest_disp.x_intersect, latest_disp.y_intersect),
-            (int(resolution_processed_x/2), int(resolution_processed_y/2)),
-            (0, 0, 255), 3)
+        cv.line(frame_contours_bgr,
+                (int(base.w_intersect_x), int(base.w_intersect_y)),
+                (int(resolution_processed_x/2), int(resolution_processed_y/2)),
+                (0, 0, 255), 3)
 
-    # Draws a line from the BASE center along its NS direction
-    cv.line(frame_contours_bgr,
-            (latest_disp.x_intersect, latest_disp.y_intersect),
-            (latest_disp.x_intersect + int(100*np.sin(latest_disp.angle_to_base)),
-             latest_disp.y_intersect + int(100*np.cos(latest_disp.angle_to_base))),
-            (0, 255, 0), 3)
+        if (base.ns_line is not None) and (base.ew_line is not None):
 
-    cv.putText(frame_contours_bgr,
-               f"x: {latest_disp.x_intersect}, y: {latest_disp.y_intersect}",
-               (25, 25), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+            # Draws a line from the BASE center along its NS direction
+            cv.line(frame_contours_bgr,
+                    (int(base.w_intersect_x), int(base.w_intersect_y)),
+                    (int(base.ns_px), int(base.ns_py)), (0, 255, 0), 3)
 
-    cv.putText(frame_contours_bgr,
-               f"N-S: {int(latest_disp.number_contours_ns)}. E-W: {int(latest_disp.number_contours_ew)}",
-               (25, 50), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+            # Draws a line from the BASE center along its EW direction
+            cv.line(frame_contours_bgr,
+                    (int(base.w_intersect_x), int(base.w_intersect_y)),
+                    (int(base.ew_px), int(base.ew_py)), (0, 255, 0), 3)
 
-    cv.putText(frame_contours_bgr,
-               f"FPS: {int(fps)}",
-               (25, 75), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+        cv.putText(frame_contours_bgr,
+                   f"x: {int(base.w_intersect_x)}, y: {int(base.w_intersect_y)}",
+                   (25, 25), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
 
-    cv.putText(frame_contours_bgr,
-               f"Angle: {int(np.rad2deg(latest_disp.angle_to_base))} deg",
-               (25, 100), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+        if base.w_heading is not None:
+            cv.putText(frame_contours_bgr,
+                       f"Angle: {int(np.rad2deg(base.heading))} deg",
+                       (25, 50), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+
+        if (base.num_cont_ns is not None) and (base.num_cont_ew is not None):
+
+            cv.putText(frame_contours_bgr,
+                       f"N-S: {int(base.num_cont_ns)}. E-W: {int(base.num_cont_ew)}",
+                       (25, 75), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+
+        if fps is not None:
+            cv.putText(frame_contours_bgr,
+                       f"FPS: {int(fps)}",
+                       (25, 100), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
 
     cv.imshow("All Contours", frame_contours_bgr)
     cv.imshow("Raw Image", frame_raw)
+    # print(f"Base Intercept x: {base.w_intersect_x}")
+    # print(f"Base Intercept y: {base.w_intersect_y}")
+    # print(f"NS_VX: {base.ns_vx}, NS_VY: {base.ns_vy}")
+    print('...')
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -259,12 +356,7 @@ resolution_processed_y = 480
 # Variables for point, line, and intersect calculations
 clustering_distance = 20
 lookback = 25
-dynamic_lookback_counter = 0
-
-# Generate empty array to populate with historical intersections
-intersects_x = []
-intersects_y = []
-headings = []
+lookback_counter = 0
 
 # Generate the array of weights to apply to the historical intersections
 weight_array = generate_weight_array(lookback, 5)
@@ -281,8 +373,8 @@ capture = cv.VideoCapture(1)
 print("Warming up camera...")
 # time.sleep(3)
 
-# Create an object to write displayable info to
-latest_disp = Display(x=0, y=0, num_cnt_ns=0, num_cnt_ew=0, fps_count=0, angle=0)
+# Create base object to store point vector pairs into
+base = Base()
 
 # Connect to the drone using MAVLink protocol
 # TODO: Verify that this is the correct device to talk over (perhaps /dev/serial0)
@@ -338,53 +430,28 @@ while capture.isOpened():
         contour_compare(cyan.contours, magenta.contours, clustering_distance) + \
         contour_compare(black.contours, yellow.contours, clustering_distance)
 
-    latest_disp.number_contours_ns = len(contours_northSouth)
-    latest_disp.number_contours_ew = len(contours_eastWest)
+    base.num_cont_ns = len(contours_northSouth)
+    base.num_cont_ew = len(contours_eastWest)
 
     # If the contours exist, fit a line of best fit to each of them using the huber method
     if contours_northSouth and contours_eastWest:
-        [ns_vx, ns_vy, ns_x1, ns_y1] = cv.fitLine(np.array(contours_northSouth), cv.DIST_HUBER, 0, 0.01, 0.01)
-        [ew_vx, ew_vy, ew_x1, ew_y1] = cv.fitLine(np.array(contours_eastWest), cv.DIST_HUBER, 0, 0.01, 0.01)
 
-        # Calculate the angular heading correction between camera frame and the base frame
-        heading_to_base = get_base_heading(ns_vx, ns_vy, ew_vx, ew_vy)
-        if heading_to_base is not None:
+        base.read_lines(cv.fitLine(np.array(contours_northSouth), cv.DIST_HUBER, 0, 0.01, 0.01),
+                        cv.fitLine(np.array(contours_eastWest), cv.DIST_HUBER, 0, 0.01, 0.01))
 
-            # Calculate the intersection point for the two lines
-            ns1 = [ns_x1[0], ns_y1[0]]
-            ns2 = [ns_x1[0] + 250 * ns_vx[0], ns_y1[0] + 250 * ns_vy[0]]
-            ew1 = [ew_x1[0], ew_y1[0]]
-            ew2 = [ew_x1[0] + 250 * ew_vx[0], ew_y1[0] + 250 * ew_vy[0]]
+        if (base.get_intersection() is not None) and (base.get_heading() is not None):
 
-            # TODO: This is temporary. Should be saved to the display object.
-            # cv.line(frame_contours_bgr, (ns1[0], ns1[1]), (ns2[0], ns2[1]), (0, 255, 0), 3)
-            # cv.line(frame_contours_bgr, (ew1[0], ew1[1]), (ew2[0], ew2[1]), (0, 255, 0), 3)
+            # Until we've reached the desired lookback depth, continue incrementing.
+            # This ensures that we're not indexing into empty portions of the arrays.
+            if lookback_counter < lookback:
+                lookback_counter += 1
+            lookback_dynamic = lookback_counter
 
-            intersection = line_intersection(ns1, ns2, ew1, ew2)
-            if intersection is not None:
+            # Create the weighted heading and intersect
+            base.gen_weighted_values(lookback_dynamic)
 
-                if dynamic_lookback_counter < lookback:
-                    dynamic_lookback_counter += 1
-                lookback_dynamic = dynamic_lookback_counter
-
-                headings.insert(0, heading_to_base[0])
-                intersects_x.insert(0, intersection[0])
-                intersects_y.insert(0, intersection[1])
-
-                weighted_heading_to_base =\
-                    np.average(headings[:lookback_dynamic], weights=weight_array[:lookback_dynamic])
-                weighted_intersect_x =\
-                    np.average(intersects_x[:lookback_dynamic], weights=weight_array[:lookback_dynamic])
-                weighted_intersect_y =\
-                    np.average(intersects_y[:lookback_dynamic], weights=weight_array[:lookback_dynamic])
-
-                # Write the latest intersects to the display object
-                latest_disp.angle_to_base = weighted_heading_to_base
-                latest_disp.x_intersect = int(weighted_intersect_x)
-                latest_disp.y_intersect = int(weighted_intersect_y)
-
-                # Issue the precision landing command to the flight controller
-                # send_land_message(weighted_intersect_x, weighted_intersect_y)
+            # Issue the precision landing command to the flight controller
+            # send_land_message(weighted_intersect_x, weighted_intersect_y)
 
     display_output()
 
@@ -392,7 +459,6 @@ while capture.isOpened():
     time_counter += 1
     if (time.time() - start_time) > time_x:
         fps = time_counter / (time.time() - start_time)
-        latest_disp.fps = fps
         time_counter = 0
         start_time = time.time()
 

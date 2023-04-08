@@ -5,18 +5,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="6c5a746c-218f-4eb6-a815-ff31de75b44a" name="Changes" comment="Restored">
-      <change afterPath="$PROJECT_DIR$/color_gen_tester.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/image_train_loop.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/roboflow_model.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/saved_color.txt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/yolo_model.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../../../CAD/Legs/ChargingArm.ipt" beforeDir="false" afterPath="$PROJECT_DIR$/../../../../CAD/Legs/ChargingArm.ipt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../../../CAD/Legs/ChargingArm.stl" beforeDir="false" afterPath="$PROJECT_DIR$/../../../../CAD/Legs/ChargingArm.stl" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/../../../../CAD/Legs/OldVersions/ChargingArm.0007.ipt" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/TrainingImages/Real/TestIndoors_960x540_15fps.mp4" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/TrainingImages/Real/TestIndoors_960x540_60fps.mp4" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/contourDetection.py" beforeDir="false" afterPath="$PROJECT_DIR$/contourDetection.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/final_runtime.py" beforeDir="false" afterPath="$PROJECT_DIR$/final_runtime.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
