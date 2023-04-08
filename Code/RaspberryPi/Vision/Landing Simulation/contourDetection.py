@@ -1,7 +1,7 @@
 import cv2 as cv
 import numpy as np
 import time
-
+import math
 
 def contour_compare(contour_list_a, contour_list_b, search_radius):
     contour_list_common = []
@@ -42,6 +42,9 @@ weights = []
 weight = 1
 text_fps = ""
 
+times =[]
+ws =[]
+
 # Define the ranges of each color in HSV. Color space is [0-179, 0-255, 0-255]
 cyan_lower = np.array([80, 100, 100])
 cyan_upper = np.array([130, 255, 255])
@@ -52,10 +55,10 @@ magenta_upper2 = np.array([179, 255, 255])
 yellow_lower = np.array([20, 100, 100])
 yellow_upper = np.array([40, 255, 255])
 black_lower = np.array([0, 0, 0])
-black_upper = np.array([179, 150, 90])
+black_upper = np.array([120, 225, 170])
 
 # Initializing the webcam
-capture = cv.VideoCapture(1)
+capture = cv.VideoCapture(0)
 print("Warming up camera...")
 time.sleep(3)
 
@@ -183,12 +186,14 @@ while capture.isOpened():
 
                 # TODO: The weights eventually overflow to infinity. This needs fixed before deployment!!!
                 weights.insert(0, weight)
-                weight = weight + weight*0.5  # Change this function to skew the weighting
+                weight = weight / (weight + weight*0.5)  # Normalize weight between 0 and 1
 
                 lookback = None
 
                 weighted_intersect_x = np.average(intersects_x[:lookback], weights=weights[:lookback], axis=0)
                 weighted_intersect_y = np.average(intersects_y[:lookback], weights=weights[:lookback], axis=0)
+
+                weight = math.tanh(700 + weights.index(weight) + (1/10))
 
                 # Display the intersection point as a circle on the image
                 cv.circle(frame_contours_bgr, (int(weighted_intersect_x), int(weighted_intersect_y)), 10, (0, 0, 255), -1)
@@ -219,3 +224,5 @@ while capture.isOpened():
         cv.destroyAllWindows()
         break
 
+size = len(weights)
+print (size)
