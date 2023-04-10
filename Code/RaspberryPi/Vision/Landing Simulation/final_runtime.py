@@ -190,7 +190,6 @@ class Base:
 def contour_compare(contour_list_a, contour_list_b, search_radius):
     contour_list_common = []
     for contour_a in contour_list_a:
-        # TODO: Evaluated whether or not approximating to open (False) or closed (True) contours is better
         contour_a = cv.approxPolyDP(contour_a, 30, True)
         for contour_b in contour_list_b:
             contour_b = cv.approxPolyDP(contour_b, 30, True)
@@ -244,7 +243,7 @@ def line_intersection(p1, p2, p3, p4):
             return None
 
     except np.linalg.LinAlgError:
-        print('No single intersection point detected')
+        # print('No single intersection point detected')
         return None
 
 
