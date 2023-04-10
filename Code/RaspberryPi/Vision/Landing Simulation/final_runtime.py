@@ -46,7 +46,6 @@ class Color:
 
 
 class Base:
-
     def __init__(self):
 
         # Initialize as undefined, then the helper functions can assign attributed as the program moves along.
@@ -140,7 +139,8 @@ class Base:
             uv_y = self.ns_vy + self.ew_vy
 
             # Checks the angle between the average unit vector and the x-axis
-            angle_2_x_axis = angle_between_lines(uv_x, uv_y, 0, 1)
+            # This is done to follow unit circle convention
+            angle_2_x_axis = angle_between_lines(uv_x, uv_y, 1, 0)
 
             # Since the calculated angle is the average of the two, the x-oriented vector is -45deg shifted.
             self.heading = angle_2_x_axis - np.deg2rad(45)

@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="6c5a746c-218f-4eb6-a815-ff31de75b44a" name="Changes" comment="Restored">
+    <list default="true" id="6c5a746c-218f-4eb6-a815-ff31de75b44a" name="Changes" comment="Massive overhaul #2. Main funcs are classed">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/final_runtime.py" beforeDir="false" afterPath="$PROJECT_DIR$/final_runtime.py" afterDir="false" />
     </list>
@@ -88,7 +88,14 @@
       <option name="project" value="LOCAL" />
       <updated>1680154349414</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="Massive overhaul #2. Main funcs are classed">
+      <created>1680931890013</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1680931890013</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
@@ -111,6 +118,7 @@
     <MESSAGE value="Added intersection detection" />
     <MESSAGE value="Post fix" />
     <MESSAGE value="Restored" />
-    <option name="LAST_COMMIT_MESSAGE" value="Restored" />
+    <MESSAGE value="Massive overhaul #2. Main funcs are classed" />
+    <option name="LAST_COMMIT_MESSAGE" value="Massive overhaul #2. Main funcs are classed" />
   </component>
 </project>
