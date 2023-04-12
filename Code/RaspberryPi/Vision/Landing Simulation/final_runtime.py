@@ -33,6 +33,37 @@ import time
 # ----------------------------------------------------------------------------------------------------------------------
 
 
+class Copter:
+    def __init__(self):
+        # Some stuff
+
+    # Define function to send landing_target mavlink message for mavlink based precision landing
+    # http://mavlink.org/messages/common#LANDING_TARGET
+    def send_land_message(self, x, y, z, time_usec=0, target_num=0):
+        msg = self.vehicle.message_factory.landing_target_encode(
+            time_usec,  # time target data was processed, as close to sensor capture as possible
+            target_num,  # target num, not used
+            mavutil.mavlink.MAV_FRAME_BODY_NED,  # frame, not used
+            x,  # X-axis angular offset, in radians
+            y,  # Y-axis angular offset, in radians
+            z,  # distance, in meters
+            0,  # Target x-axis size, in radians
+            0,  # Target y-axis size, in radians
+            0,  # x	float	X Position of the landing target on MAV_FRAME
+            0,  # y	float	Y Position of the landing target on MAV_FRAME
+            0,  # z	float	Z Position of the landing target on MAV_FRAME
+            (1, 0, 0, 0),
+            # q	float[4]	Quaternion of landing target orientation (w, x, y, z order, zero-rotation is 1, 0, 0, 0)
+            2,  # type of landing target: 2 = Fiducial marker
+            1,  # position_valid boolean
+        )
+        self.vehicle.send_mavlink(msg)
+        self.vehicle.flush()
+        if args.verbose:
+            log.debug("Sending mavlink landing_target - time_usec:{:.0f}, x:{}, y:{}, z:{}".format(time_usec, str(x), str(y), str(z)))
+
+
+
 class Color:
     def __init__(self, bound_lower, bound_upper, mask=None, blur=None, edges=None, contours=None, hierarchy=None):
 
@@ -46,6 +77,13 @@ class Color:
 
 
 class Base:
+    """
+    The base class stores all the information that describes the positioning and orientation of the base in the camera
+    frame. It takes in two sets of contours that describe the North-South and East-West boundaries between the edges of
+    the landing base. Ultimately, its output is the position and heading of the base relative to the camera frame. This
+    class contains four member functions that read in the line contours, retrieve the intersection of the base, retrieve
+    the heading of the base, and generate the weighted values necessary for increasing accuracy over time.
+    """
     def __init__(self):
 
         # Initialize as undefined, then the helper functions can assign attributed as the program moves along.
@@ -172,19 +210,6 @@ class Base:
 # ----------------------------------------------------------------------------------------------------------------------
 # FUNCTIONS
 # ----------------------------------------------------------------------------------------------------------------------
-
-
-# def send_land_message(x, y):
-#     msg = drone.message_factory.landing_target_encode(
-#         0,       # time_boot_ms (not used)
-#         0,       # target num
-#         0,       # frame
-#         (x - resolution_processed_x/2)*horizontal_fov/resolution_processed_x,
-#         (y - resolution_processed_y/2)*vertical_fov/resolution_processed_y,
-#         0,       # altitude.  Not supported.
-#         0, 0)     # size of target in radians
-#     drone.send_mavlink(msg)
-#     drone.flush()
 
 
 def contour_compare(contour_list_a, contour_list_b, search_radius):
