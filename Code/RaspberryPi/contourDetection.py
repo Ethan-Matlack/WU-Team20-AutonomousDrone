@@ -225,4 +225,4 @@ while capture.isOpened():
         break
 
 size = len(weights)
-print (size)
+print(size)
