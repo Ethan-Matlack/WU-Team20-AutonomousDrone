@@ -5,7 +5,12 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="6c5a746c-218f-4eb6-a815-ff31de75b44a" name="Changes" comment="Corrected x-axis definition">
+      <change afterPath="$PROJECT_DIR$/downloaded_test.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/mavlink_basic_tests.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/mavlink_sitl_tests.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/final_runtime.py" beforeDir="false" afterPath="$PROJECT_DIR$/final_runtime.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/image_train_loop.py" beforeDir="false" afterPath="$PROJECT_DIR$/image_train_loop.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

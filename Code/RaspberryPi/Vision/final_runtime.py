@@ -23,10 +23,24 @@
 # IMPORTS
 # ----------------------------------------------------------------------------------------------------------------------
 
+# OpenCV
 import cv2 as cv
 import numpy as np
+
+# Dronekit & Mavlink
 from pymavlink import mavutil
+from pymavlink.CSVReader import CSVReader
+from pymavlink.DFReader import DFReader_binary, DFReader_text
+from pymavlink.mavutil import mavtcp, mavtcpin, mavudp, mavmcast, mavchildexec, mavmmaplog, mavlogfile, mavserial, mavlink
+
+# Helper Libraries
+# import multiprocessing
+# import threading
+
+# Python
 import time
+# import argparse
+# from typing import Optional
 
 # ----------------------------------------------------------------------------------------------------------------------
 # CLASSES
@@ -34,34 +48,105 @@ import time
 
 
 class Copter:
-    def __init__(self):
-        # Some stuff
 
-    # Define function to send landing_target mavlink message for mavlink based precision landing
-    # http://mavlink.org/messages/common#LANDING_TARGET
-    def send_land_message(self, x, y, z, time_usec=0, target_num=0):
-        msg = self.vehicle.message_factory.landing_target_encode(
-            time_usec,  # time target data was processed, as close to sensor capture as possible
-            target_num,  # target num, not used
-            mavutil.mavlink.MAV_FRAME_BODY_NED,  # frame, not used
-            x,  # X-axis angular offset, in radians
-            y,  # Y-axis angular offset, in radians
-            z,  # distance, in meters
+    # Type hints for the serial object so that the IDE knows what to expect and I get working auto-complete :)
+    serial: mavtcp | mavtcpin | mavudp | mavmcast | DFReader_binary | CSVReader | DFReader_text | mavchildexec | \
+            mavmmaplog | mavlogfile | mavserial | mavlink
+
+    def __init__(self):
+        self.rangefinder_distance = None
+        self.battery_voltage = None
+        self.battery_remaining = None
+
+    # Establishes the initial connection from the RPi to the Pixhawk. Takes in a specified comm device to talk over
+    def connect(self, device: str = '/dev/ttyAMA0', baud: int = 57600) -> None:
+
+        # Connect to the pixhawk using MAVLink protocol on the specified device
+        # TODO: Verify that this is the correct device to talk over (perhaps /dev/serial0)
+        self.serial = mavutil.mavlink_connection(device, baud)
+        self.serial.wait_heartbeat()
+        print("Heartbeat from system (system %u component %u)" %
+              (self.serial.target_system, self.serial.target_component))
+
+    def request_message_interval(self, message_id: int, frequency_hz: float):
+        """
+        Request MAVLink message in a desired frequency, documentation for SET_MESSAGE_INTERVAL:
+            https://mavlink.io/en/messages/common.html#MAV_CMD_SET_MESSAGE_INTERVAL
+
+        Args:
+            message_id (int): MAVLink message ID
+            frequency_hz (float): Desired frequency in Hz
+        """
+        self.serial.mav.command_long_send(
+            self.serial.target_system,
+            self.serial.target_component,
+            mavutil.mavlink.MAV_CMD_SET_MESSAGE_INTERVAL,  # Command
+            0,  # Confirmation
+            message_id,  # Message ID:
+            1e6 / frequency_hz,  # Frequency in Hz
+            0, 0, 0, 0, 0  # Un-used
+        )
+
+    def get_sensors(self):
+
+        try:
+            msg_sys_status = copter.serial.recv_match(type='SYS_STATUS', blocking=False)
+            self.battery_voltage = msg_sys_status.voltage_battery / 1000
+            self.battery_remaining = msg_sys_status.battery_remaining
+        except:
+            pass
+
+        try:
+            msg_distance_sensor = copter.serial.recv_match(type='DISTANCE_SENSOR', blocking=False)
+            self.rangefinder_distance = msg_distance_sensor.current_distance / 100
+        except:
+            pass
+
+        print(
+            f"Battery voltage: {self.battery_voltage}, remaining: {self.battery_remaining}%. Distance: {self.rangefinder_distance}")
+
+    def send_heartbeat(self):
+        self.serial.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_ONBOARD_CONTROLLER,
+                                       mavutil.mavlink.MAV_AUTOPILOT_INVALID, 0, 0, 0)
+
+    def send_land_local(self, x, y):
+        self.serial.mav.command_long_send(
+            self.serial.target_system,
+            self.serial.target_component,
+            mavutil.mavlink.MAV_CMD_NAV_LAND_LOCAL,
+            0,
+            1, 0, 0, 0, 0, 0, 0)
+
+    def send_landing_target(self, x_rad, y_rad, time_usec=0):
+        msg = self.serial.message_factory.landing_target_encode(
+            time_usec,  # Time target data was processed
+            0,  # Target number
+            mavutil.mavlink.MAV_FRAME_BODY_NED,  # Frame
+            x_rad,  # X-axis angular offset, in radians
+            y_rad,  # Y-axis angular offset, in radians
+            self.rangefinder_distance,  # distance, in meters
             0,  # Target x-axis size, in radians
             0,  # Target y-axis size, in radians
-            0,  # x	float	X Position of the landing target on MAV_FRAME
-            0,  # y	float	Y Position of the landing target on MAV_FRAME
-            0,  # z	float	Z Position of the landing target on MAV_FRAME
-            (1, 0, 0, 0),
-            # q	float[4]	Quaternion of landing target orientation (w, x, y, z order, zero-rotation is 1, 0, 0, 0)
-            2,  # type of landing target: 2 = Fiducial marker
-            1,  # position_valid boolean
+            0,  # x    float    X Position of the landing target on MAV_FRAME
+            0,  # y    float    Y Position of the landing target on MAV_FRAME
+            0,  # z    float    Z Position of the landing target on MAV_FRAME
+            (1, 0, 0, 0),  # q    float[4]    Quaternion of landing target orientation
+            # (w, x, y, z order, zero-rotation is 1, 0, 0, 0)
+            2,  # Type of landing target: 3 = Other marker
+            0,  # Position_valid boolean
         )
-        self.vehicle.send_mavlink(msg)
-        self.vehicle.flush()
-        if args.verbose:
-            log.debug("Sending mavlink landing_target - time_usec:{:.0f}, x:{}, y:{}, z:{}".format(time_usec, str(x), str(y), str(z)))
+        self.serial.send_mavlink(msg)
+        self.serial.flush()
 
+    def nav_land(self):
+        self.serial.mav.command_long_send(
+            self.serial.target_system,
+            self.serial.target_component,
+            mavutil.mavlink.MAV_CMD_NAV_LAND,
+            0,
+            0, 0, 0, 0,
+            0, 0, 0
+        )
 
 
 class Color:
@@ -395,22 +480,19 @@ fps = 0
 # Initializing the camera
 capture = cv.VideoCapture(1)
 print("Warming up camera...")
-# time.sleep(3)
+time.sleep(3)
 
-# Create base object to store point vector pairs into
+# Create base and copter objects
 base = Base()
-
-# Connect to the drone using MAVLink protocol
-# TODO: Verify that this is the correct device to talk over (perhaps /dev/serial0)
-# drone = mavutil.mavlink_connection('/dev/ttyAMA0')
-
-# Wait for the first heartbeat to set the system and component ID of remote system
-# drone.wait_heartbeat()
-# print("Heartbeat from system (system %u component %u)" % (drone.target_system, drone.target_component))
+copter = Copter()
 
 # ----------------------------------------------------------------------------------------------------------------------
 # MAIN BODY
 # ----------------------------------------------------------------------------------------------------------------------
+
+copter.connect('COM4')
+copter.request_message_interval(mavutil.mavlink.BATTERY_STATUS, 5)
+copter.request_message_interval(mavutil.mavlink.DISTANCE_SENSOR, 10)
 
 # Initialize params for a little FPS counter
 start_time = time.time()
@@ -418,8 +500,6 @@ time_x = 1  # How often the frame rate is updated (in sec)
 time_counter = 0
 
 while capture.isOpened():
-
-    # relative_altitude = drone.messages['ALTITUDE'].altitude_relative
 
     # Read in the camera frame by frame
     _, frame_raw = capture.read()
@@ -475,9 +555,16 @@ while capture.isOpened():
             base.gen_weighted_values(lookback_dynamic)
 
             # Issue the precision landing command to the flight controller
-            # send_land_message(weighted_intersect_x, weighted_intersect_y)
+            # TODO: Need to transform this into angle_x and angle_y
+            copter.send_landing_target(x_rad, y_rad)
+            print(f"Issuing land command:"
+                  f"Angle_x: {base.w_intersect_x},"
+                  f"Angle_y: {base.w_intersect_y},"
+                  f"Distance: {copter.rangefinder_distance}")
 
-    display_output()
+    # display_output()
+
+    copter.send_heartbeat()
 
     # Used to log the FPS. Calcs passed time each frame
     time_counter += 1
@@ -492,8 +579,3 @@ while capture.isOpened():
         # output.release()
         cv.destroyAllWindows()
         break
-
-    # # Break the loop if the drone has landed
-    # if drone.motors_disarmed:
-    #     capture.release()
-    #     break

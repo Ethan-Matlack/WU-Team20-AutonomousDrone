@@ -70,7 +70,7 @@ path_rel_real_mixed_veryclose = r"real\mixed_veryclose"
 path_rel_real_outdoor_mixed_overhead = r"real\outdoor\mixed_overhead"
 
 
-active_path = path_rel_real_outdoor_sun
+active_path = path_rel_real_mixed_veryclose
 
 break_flag = False
 
