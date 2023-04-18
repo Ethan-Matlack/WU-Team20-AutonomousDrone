@@ -1,46 +1,16 @@
-# ----------------------------------------------------------------------------------------------------------------------
-# PRIMARY RUNTIME FILE
-# ----------------------------------------------------------------------------------------------------------------------
+#!/usr/bin/env python3
 
-# CREATED BY:
-# Senior Project Team 20
-# Widener University - School of Engineering
-# Ethan Matlack, Brian Chung, Dimple Gandevia, Chase Crane, Nick Olsen
-
-# DEPLOYMENT NOTES:
-# TODO: Complete a little write-up about how this code should be field-deployed.
-
-# ----------------------------------------------------------------------------------------------------------------------
-# NOTES
-# ----------------------------------------------------------------------------------------------------------------------
-
-# Camera is positioned such that CAMERA_UP is DRONE_RIGHT.
-# In other words, CAMERA_LEFT is DRONE_FORWARD.
-# Any camera inputs should be rotated 90 degrees CCW into DRONE frame.
-# The landing station UP is defined as the Magenta/Yellow edge.
-
-# ----------------------------------------------------------------------------------------------------------------------
-# IMPORTS
-# ----------------------------------------------------------------------------------------------------------------------
-
-# OpenCV
 import cv2 as cv
 import numpy as np
-
-# Dronekit & Mavlink
+import pymavlink
 from pymavlink import mavutil
-from pymavlink.CSVReader import CSVReader
-from pymavlink.DFReader import DFReader_binary, DFReader_text
-from pymavlink.mavutil import mavtcp, mavtcpin, mavudp, mavmcast, mavchildexec, mavmmaplog, mavlogfile, mavserial, mavlink
-
-# Helper Libraries
-# import multiprocessing
-# import threading
-
-# Python
 import time
-# import argparse
-# from typing import Optional
+import sys
+
+# IMPORTANT: ENSURE THE SIMULATION FLAG IS SET CORRECTLY!!!
+simulation = False
+if simulation:
+    from simulation_setup import *
 
 # ----------------------------------------------------------------------------------------------------------------------
 # CLASSES
@@ -49,24 +19,58 @@ import time
 
 class Copter:
 
-    # Type hints for the serial object so that the IDE knows what to expect and I get working auto-complete :)
-    serial: mavtcp | mavtcpin | mavudp | mavmcast | DFReader_binary | CSVReader | DFReader_text | mavchildexec | \
-            mavmmaplog | mavlogfile | mavserial | mavlink
-
     def __init__(self):
+
+        self.resolution_camera_x = None
+        self.resolution_camera_y = None
+        self.horizontal_fov = None
+        self.vertical_fov = None
+        self.resolution_processed_x = None
+        self.resolution_processed_y = None
+
+        self.master = None
+        self.mode = None
         self.rangefinder_distance = None
         self.battery_voltage = None
         self.battery_remaining = None
 
-    # Establishes the initial connection from the RPi to the Pixhawk. Takes in a specified comm device to talk over
     def connect(self, device: str = '/dev/ttyAMA0', baud: int = 57600) -> None:
+        """
+        Establishes the initial connection from the RPi to the Pixhawk.
 
+        Args:
+            device (str): device to talk over (default: '/dev/ttyAMA0')
+            baud (int): baud rate (default: 57600)
+
+        Returns:
+            None
+        """
         # Connect to the pixhawk using MAVLink protocol on the specified device
         # TODO: Verify that this is the correct device to talk over (perhaps /dev/serial0)
-        self.serial = mavutil.mavlink_connection(device, baud)
-        self.serial.wait_heartbeat()
+        self.master = mavutil.mavlink_connection(device, baud)
+        self.master.wait_heartbeat()
         print("Heartbeat from system (system %u component %u)" %
-              (self.serial.target_system, self.serial.target_component))
+              (self.master.target_system, self.master.target_component))
+
+    def setup_camera_details(self, camera_type: str):
+
+        if camera_type == 'RaspberryPiV2':
+            self.resolution_camera_x = 1920
+            self.resolution_camera_y = 1080
+            self.horizontal_fov = np.deg2rad(62.2)
+            self.vertical_fov = np.deg2rad(48.8)
+            self.resolution_processed_x = 720
+            self.resolution_processed_y = 480
+        elif camera_type == 'Simulated':
+            self.resolution_camera_x = 1920
+            self.resolution_camera_y = 1080
+            self.horizontal_fov = np.deg2rad(62.2)
+            self.vertical_fov = np.deg2rad(48.8)
+            self.resolution_processed_x = 640
+            self.resolution_processed_y = 480
+        else:
+            print('You must use a predefined camera!')
+            raise Exception
 
     def request_message_interval(self, message_id: int, frequency_hz: float):
         """
@@ -77,9 +81,9 @@ class Copter:
             message_id (int): MAVLink message ID
             frequency_hz (float): Desired frequency in Hz
         """
-        self.serial.mav.command_long_send(
-            self.serial.target_system,
-            self.serial.target_component,
+        self.master.mav.command_long_send(
+            self.master.target_system,
+            self.master.target_component,
             mavutil.mavlink.MAV_CMD_SET_MESSAGE_INTERVAL,  # Command
             0,  # Confirmation
             message_id,  # Message ID:
@@ -88,70 +92,83 @@ class Copter:
         )
 
     def get_sensors(self):
+        """
+        Get the sensor data.
 
-        try:
-            msg_sys_status = copter.serial.recv_match(type='SYS_STATUS', blocking=False)
-            self.battery_voltage = msg_sys_status.voltage_battery / 1000
-            self.battery_remaining = msg_sys_status.battery_remaining
-        except:
-            pass
+        Returns:
+            None
+        """
 
-        try:
-            msg_distance_sensor = copter.serial.recv_match(type='DISTANCE_SENSOR', blocking=False)
-            self.rangefinder_distance = msg_distance_sensor.current_distance / 100
-        except:
-            pass
+        msg_heartbeat = self.master.recv_match(type='HEARTBEAT', blocking=False)
+        if msg_heartbeat:
+            if msg_heartbeat.get_type() == "BAD_DATA" and mavutil.all_printable(msg_heartbeat.data):
+                sys.stdout.write(msg_heartbeat.data)
+                sys.stdout.flush()
+            else:
+                self.mode = mavutil.mode_string_v10(msg_heartbeat)
+                print(self.mode)
+
+        msg_sys_status = self.master.recv_match(type='SYS_STATUS', blocking=False)
+        if msg_sys_status:
+            if msg_sys_status.get_type() == "BAD_DATA" and mavutil.all_printable(msg_sys_status.data):
+                sys.stdout.write(msg_sys_status.data)
+                sys.stdout.flush()
+            else:
+                self.battery_voltage = msg_sys_status.voltage_battery / 1000
+                self.battery_remaining = msg_sys_status.battery_remaining
+
+        msg_distance_sensor = self.master.recv_match(type='DISTANCE_SENSOR', blocking=False)
+        if msg_distance_sensor:
+            if msg_distance_sensor.get_type() == "BAD_DATA" and mavutil.all_printable(msg_distance_sensor.data):
+                sys.stdout.write(msg_distance_sensor.data)
+                sys.stdout.flush()
+            else:
+                self.rangefinder_distance = msg_distance_sensor.current_distance / 100
 
         print(
-            f"Battery voltage: {self.battery_voltage}, remaining: {self.battery_remaining}%. Distance: {self.rangefinder_distance}")
+            f"Battery voltage: {self.battery_voltage}, remaining: {self.battery_remaining}%. Distance: {self.rangefinder_distance}m")
 
     def send_heartbeat(self):
-        self.serial.mav.heartbeat_send(mavutil.mavlink.MAV_TYPE_ONBOARD_CONTROLLER,
-                                       mavutil.mavlink.MAV_AUTOPILOT_INVALID, 0, 0, 0)
-
-    def send_land_local(self, x, y):
-        self.serial.mav.command_long_send(
-            self.serial.target_system,
-            self.serial.target_component,
-            mavutil.mavlink.MAV_CMD_NAV_LAND_LOCAL,
-            0,
-            1, 0, 0, 0, 0, 0, 0)
+        self.master.mav.heartbeat_send(
+            mavutil.mavlink.MAV_TYPE_ONBOARD_CONTROLLER,
+            mavutil.mavlink.MAV_AUTOPILOT_INVALID,
+            0, 0, 0)
 
     def send_landing_target(self, x_rad, y_rad, time_usec=0):
-        msg = self.serial.message_factory.landing_target_encode(
-            time_usec,  # Time target data was processed
-            0,  # Target number
-            mavutil.mavlink.MAV_FRAME_BODY_NED,  # Frame
-            x_rad,  # X-axis angular offset, in radians
-            y_rad,  # Y-axis angular offset, in radians
-            self.rangefinder_distance,  # distance, in meters
-            0,  # Target x-axis size, in radians
-            0,  # Target y-axis size, in radians
-            0,  # x    float    X Position of the landing target on MAV_FRAME
-            0,  # y    float    Y Position of the landing target on MAV_FRAME
-            0,  # z    float    Z Position of the landing target on MAV_FRAME
-            (1, 0, 0, 0),  # q    float[4]    Quaternion of landing target orientation
-            # (w, x, y, z order, zero-rotation is 1, 0, 0, 0)
-            2,  # Type of landing target: 3 = Other marker
-            0,  # Position_valid boolean
-        )
-        self.serial.send_mavlink(msg)
-        self.serial.flush()
+        self.master.mav.landing_target_send(
+            time_usec,  # time_usec
+            1,  # target_num
+            mavutil.mavlink.MAV_FRAME_GLOBAL,  # frame; AP ignores
+            x_rad,  # angle x (radians)
+            y_rad,  # angle y (radians)
+            self.rangefinder_distance,  # distance to target
+            0, 0)
 
-    def nav_land(self):
-        self.serial.mav.command_long_send(
-            self.serial.target_system,
-            self.serial.target_component,
-            mavutil.mavlink.MAV_CMD_NAV_LAND,
-            0,
-            0, 0, 0, 0,
-            0, 0, 0
-        )
+    def set_yaw(self, angle_degrees):
+        """
+        Set the copter's yaw position in degrees.
+
+        Parameters:
+            angle_degrees (float): The angle to set the copter's yaw to, in degrees.
+
+        Returns:
+            None
+        """
+        # Convert the angle from degrees to radians
+        angle_radians = np.deg2rad(angle_degrees)
+
+        # Create a MAV_CMD_CONDITION_YAW message
+        self.master.mav.command_long_send(
+            self.master.target_system,
+            self.master.target_component,
+            mavutil.mavlink.MAV_CMD_CONDITION_YAW,  # command
+            0,  # confirmation
+            angle_radians,  # param 1: target angle
+            0, 0, 0, 0, 0, 0)  # params 2-7 not used
 
 
 class Color:
     def __init__(self, bound_lower, bound_upper, mask=None, blur=None, edges=None, contours=None, hierarchy=None):
-
         self.lower_bound = bound_lower
         self.upper_bound = bound_upper
         self.mask = mask
@@ -169,11 +186,16 @@ class Base:
     class contains four member functions that read in the line contours, retrieve the intersection of the base, retrieve
     the heading of the base, and generate the weighted values necessary for increasing accuracy over time.
     """
-    def __init__(self):
 
+    def __init__(self):
+        """
+        Initializes an instance of the Base class with all attributes set to None except for the historical list variables.
+        """
         # Initialize as undefined, then the helper functions can assign attributed as the program moves along.
         # Some of these (num_cont) will be assigned directly in code and not via helper funcs.
 
+        self.offset_x = None
+        self.offset_y = None
         self.ew_line = None
         self.ns_line = None
 
@@ -208,6 +230,17 @@ class Base:
 
     # Read in the best fit lines for the two contours
     def read_lines(self, ns_line=None, ew_line=None):
+        """
+        Reads in the best fit lines for the North-South and East-West contours and stores the point and vector components
+        of each line as attributes of the Base instance.
+
+        Args:
+            ns_line (tuple): A tuple containing the vector and point components of the best fit line for the North-South contour.
+            ew_line (tuple): A tuple containing the vector and point components of the best fit line for the East-West contour.
+
+        Returns:
+            None
+        """
         # Bring in the point,vector lines
         self.ns_line = ns_line
         self.ew_line = ew_line
@@ -228,30 +261,40 @@ class Base:
 
     # Calculate the (x,y) intersect of the lines representing the base center
     def get_intersection(self):
-        print("get_intersection is called")
+        """
+        Calculates the intersection point for the two lines representing the base center.
 
+        Returns:
+            tuple: The (x,y) coordinates of the intersection point.
+                   Returns None if the required values are not yet assigned.
+        """
         try:
             # Calculate the intersection point for the two lines
-            ns1 = [int(self.ns_px), int(self.ns_py)]
-            ns2 = [int(self.ns_px + (200 * self.ns_vx)), int(self.ns_py + (200 * self.ns_vy))]
-            ew1 = [int(self.ew_px), int(self.ew_py)]
-            ew2 = [int(self.ew_px + (200 * self.ew_vx)), int(self.ew_py + (200 * self.ew_vy))]
+            ns1 = (int(self.ns_px), int(self.ns_py))
+            ns2 = (int(self.ns_px + (200 * self.ns_vx)), int(self.ns_py + (200 * self.ns_vy)))
+            ew1 = (int(self.ew_px), int(self.ew_py))
+            ew2 = (int(self.ew_px + (200 * self.ew_vx)), int(self.ew_py + (200 * self.ew_vy)))
 
         # Handles the case where the values are not yet assigned
         except AttributeError:
             return None
 
         self.intersection = line_intersection(ns1, ns2, ew1, ew2)
-        print(f"intersection: {self.intersection}")
 
         return self.intersection
 
     # Calculate the angular heading correction between camera frame and the base frame
     def get_heading(self):
-        print("get_heading is called")
+        """
+        Calculates the angular heading correction between camera frame and the base frame.
+
+        Returns:
+            float: The angular heading correction in radians.
+                   Returns None if the required values are not yet assigned.
+        """
         try:
             angle_between = angle_between_lines(self.ns_vx, self.ns_vy, self.ew_vx, self.ew_vy)
-            self.heading_accuracy = 1 - abs(angle_between - np.pi/2)/(np.pi/2)
+            self.heading_accuracy = 1 - abs(angle_between - np.pi / 2) / (np.pi / 2)
 
         # Handles the case where the values are not yet assigned
         except AttributeError:
@@ -280,7 +323,15 @@ class Base:
 
     # Generate the weighted values for heading and intersect based on the weighting function
     def gen_weighted_values(self, lookback_depth):
+        """
+        Generates the weighted values for heading and intersection point based on the weighting function.
 
+        Args:
+            lookback_depth (int): The number of previous values to consider for the weighted average.
+
+        Returns:
+            None
+        """
         # Write the current values to the un-weighted list
         self.heading_list.insert(0, self.heading[0])
         self.intersect_x_list.insert(0, self.intersection[0])
@@ -294,8 +345,28 @@ class Base:
         self.w_intersect_y = \
             np.average(self.intersect_y_list[:lookback_depth], weights=weight_array[:lookback_depth])
 
-        self.w_rad_x = ((self.w_intersect_x - resolution_processed_x*0.5)/resolution_processed_x)*horizontal_fov
-        self.w_rad_y = ((self.w_intersect_y - resolution_processed_y * 0.5) / resolution_processed_y) * vertical_fov
+        self.offset_x = self.w_intersect_x - (copter.resolution_processed_x / 2)
+        self.offset_y = self.w_intersect_y - (copter.resolution_processed_y / 2)
+        print(
+            f"Intersection: ({int(self.w_intersect_x)}, {int(self.w_intersect_y)})"
+            f"... Offset: ({int(self.offset_x)}, {int(self.offset_y)})")
+        self.w_rad_x = self.offset_x * copter.horizontal_fov / copter.resolution_processed_x
+        self.w_rad_y = self.offset_y * copter.vertical_fov / copter.resolution_processed_y
+
+    def clear_session(self):
+        self.heading_list= []
+        self.intersect_x_list = []
+        self.intersect_y_list = []
+        self.w_heading = None
+        self.w_intersect_x = None
+        self.w_intersect_y = None
+        self.ns_line = None
+        self.ew_line = None
+        self.offset_x = None
+        self.offset_y = None
+        self.w_rad_x = None
+        self.w_rad_y = None
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 # FUNCTIONS
@@ -303,6 +374,18 @@ class Base:
 
 
 def contour_compare(contour_list_a, contour_list_b, search_radius):
+    """
+    Compare two lists of contours and return a list of common points found in both lists of contours, rounded to the
+    nearest integer.
+
+    Args:
+        contour_list_a (list): A list of contours
+        contour_list_b (list): A list of contours
+        search_radius (int): The search radius in pixels for comparing the contours
+
+    Returns:
+        contour_list_common (list): A list of (x, y) points where the contours intersect within the search radius
+    """
     contour_list_common = []
     for contour_a in contour_list_a:
         contour_a = cv.approxPolyDP(contour_a, 30, True)
@@ -319,15 +402,38 @@ def contour_compare(contour_list_a, contour_list_b, search_radius):
 
 
 def angle_between_lines(uv1_x, uv1_y, uv2_x, uv2_y):
+    """
+    Calculates the angle in radians between two unit vectors.
+
+    Args:
+        uv1_x (float): x-component of the first unit vector.
+        uv1_y (float): y-component of the first unit vector.
+        uv2_x (float): x-component of the second unit vector.
+        uv2_y (float): y-component of the second unit vector.
+
+    Returns:
+        angle_between (float): The angle in radians between the two unit vectors.
+    """
     # Only accepts unit vectors for speed improvements.
     # Change the "divide by 2" portion of the angle_between calc to "MagV1*MagV2" to generalize.
-    dot_product = uv1_x*uv2_x + uv1_y*uv2_y
+    dot_product = uv1_x * uv2_x + uv1_y * uv2_y
     angle_between = np.arccos(dot_product / 2)
     return angle_between
 
 
 def line_intersection(p1, p2, p3, p4):
+    """
+    Calculates the intersection point between two lines.
 
+    Args:
+        p1 (tuple): A tuple containing the (x, y) coordinates of the first point on line 1.
+        p2 (tuple): A tuple containing the (x, y) coordinates of the second point on line 1.
+        p3 (tuple): A tuple containing the (x, y) coordinates of the first point on line 2.
+        p4 (tuple): A tuple containing the (x, y) coordinates of the second point on line 2.
+
+    Returns:
+        tuple or None: A tuple containing the (x, y) coordinates of the intersection point if it exists, None otherwise.
+    """
     # This assumes that an intersection point actually exists. Must validate prior to calling!!
 
     # Line 1 dy, dx and determinant
@@ -363,14 +469,40 @@ def line_intersection(p1, p2, p3, p4):
 
 
 def generate_weight_array(length, flat_distance):
+    """
+    Generates a numpy array with a length specified by the user. The first "flat_distance" elements of the array have a
+    value of 1, and the remaining elements decrease linearly to a value of 0.
+
+    Args:
+        length: An integer specifying the length of the output numpy array.
+        flat_distance: An integer specifying the number of elements at the beginning of the array with a value of 1.
+
+    Returns:
+        weights: A numpy array with a shape of (length,) and values that decrease linearly from 1 to 0 over its length.
+    """
     flat_distance = int(flat_distance)
     weights = np.empty(length)
     weights[:flat_distance] = 1
-    weights[flat_distance+1:] = np.linspace(1, 0, num=length-(flat_distance+1))
+    weights[flat_distance + 1:] = np.linspace(1, 0, num=length - (flat_distance + 1))
     return weights
 
 
 def generate_contours(color, gauss_blur_x, gauss_blur_y, canny_threshold1, canny_threshold2):
+    """
+    Takes a color object and generates a mask from the color's lower and upper bounds. Then, applies Gaussian blurring
+    and Canny edge detection to the mask to detect the edges of the image. Finally, uses contour detection to find the
+    contours of the edges in the image, sorting them by area with the largest contours first.
+
+    Args:
+        color: A color object with lower and upper bounds for HSV color space.
+        gauss_blur_x: An integer specifying the x-axis Gaussian blur kernel size.
+        gauss_blur_y: An integer specifying the y-axis Gaussian blur kernel size.
+        canny_threshold1: An integer specifying the lower threshold for Canny edge detection.
+        canny_threshold2: An integer specifying the upper threshold for Canny edge detection.
+
+    Returns:
+        None.
+    """
     # Create masks for each color
     if type(color.upper_bound) is tuple:
         mask1 = cv.inRange(frame_hsv, color.lower_bound[0], color.upper_bound[0])
@@ -386,14 +518,23 @@ def generate_contours(color, gauss_blur_x, gauss_blur_y, canny_threshold1, canny
     color.edges = cv.Canny(image=color.mask, threshold1=canny_threshold1, threshold2=canny_threshold2)
 
     # Find the external contours only using the chain approximation method to limit the points
-    color.contours, color.hierarchy = cv.findContours(color.edges, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    color.contours, color.hierarchy = cv.findContours(color.edges, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)[-2:]
 
     # Sort the contours based on their area. Largest contours are first in the array.
     color.contours = sorted(color.contours, key=cv.contourArea, reverse=True)
 
 
 def display_output():
+    """
+    Display output on the processed image frame.
 
+    This function displays various lines and text on the processed image frame including the location of the
+    base's center, the angle of the base, the number of contours in the north-south and east-west directions, and
+    the current frames-per-second. It also draws circles and lines to represent the base and its direction.
+
+    Returns:
+        None
+    """
     if (base.w_intersect_x is not None) and (base.w_intersect_y is not None):
 
         cv.circle(frame_contours_bgr,
@@ -402,11 +543,10 @@ def display_output():
 
         cv.line(frame_contours_bgr,
                 (int(base.w_intersect_x), int(base.w_intersect_y)),
-                (int(resolution_processed_x/2), int(resolution_processed_y/2)),
+                (int(copter.resolution_processed_x / 2), int(copter.resolution_processed_y / 2)),
                 (0, 0, 255), 3)
 
         if (base.ns_line is not None) and (base.ew_line is not None):
-
             # Draws a line from the BASE center along its NS direction
             cv.line(frame_contours_bgr,
                     (int(base.w_intersect_x), int(base.w_intersect_y)),
@@ -427,7 +567,6 @@ def display_output():
                        (25, 50), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
 
         if (base.num_cont_ns is not None) and (base.num_cont_ew is not None):
-
             cv.putText(frame_contours_bgr,
                        f"N-S: {int(base.num_cont_ns)}. E-W: {int(base.num_cont_ew)}",
                        (25, 75), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
@@ -438,7 +577,7 @@ def display_output():
                        (25, 100), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
 
     cv.imshow("All Contours", frame_contours_bgr)
-    cv.imshow("Raw Image", frame_raw)
+    # cv.imshow("Raw Image", frame_raw)
     # print(f"Base Intercept x: {base.w_intersect_x}")
     # print(f"Base Intercept y: {base.w_intersect_y}")
     # print(f"NS_VX: {base.ns_vx}, NS_VY: {base.ns_vy}")
@@ -454,18 +593,8 @@ def display_output():
 cyan = Color(np.array([80, 100, 100]), np.array([130, 255, 255]))
 magenta = Color((np.array([0, 100, 100]), np.array([160, 100, 100])),
                 (np.array([10, 255, 255]), np.array([179, 255, 255])))
-yellow = Color(np.array([20, 100, 100]), np.array([40, 255, 255]))
+yellow = Color(np.array([20, 100, 100]), np.array([30, 255, 255]))
 black = Color(np.array([0, 0, 3]), np.array([130, 225, 105]))
-
-# Camera Details (Raspberry Pi Cam V2)
-resolution_camera_x = 1920
-resolution_camera_y = 1080
-horizontal_fov = np.deg2rad(62.2)
-vertical_fov = np.deg2rad(48.8)
-
-# Processed resolutions (not raw cam)
-resolution_processed_x = 720
-resolution_processed_y = 480
 
 # Variables for point, line, and intersect calculations
 clustering_distance = 20
@@ -482,36 +611,52 @@ fps = 0
 # SETUP
 # ----------------------------------------------------------------------------------------------------------------------
 
-# Initializing the camera
-capture = cv.VideoCapture(1)
-print("Warming up camera...")
-time.sleep(3)
-
 # Create base and copter objects
+print("Creating base object")
 base = Base()
+print("Creating copter object")
 copter = Copter()
+
+if simulation:
+    camera_type = 'Simulation'
+    camera_subscriber = CameraSubscriber()
+else:
+    camera_type = 'RaspberryPiV2'
+    capture = cv.VideoCapture(1)
+
+copter.setup_camera_details(camera_type)
 
 # ----------------------------------------------------------------------------------------------------------------------
 # MAIN BODY
 # ----------------------------------------------------------------------------------------------------------------------
 
-copter.connect('COM4')
-copter.request_message_interval(mavutil.mavlink.BATTERY_STATUS, 5)
-copter.request_message_interval(mavutil.mavlink.DISTANCE_SENSOR, 10)
+print("Attempting to connect...")
+if simulation:
+    copter.connect('udp:127.0.0.1:14550')
+else:
+    copter.connect()
+print("===============================================================")
+
+copter.request_message_interval(mavutil.mavlink.MAVLINK_MSG_ID_BATTERY_STATUS, 0.1)
+copter.request_message_interval(mavutil.mavlink.MAVLINK_MSG_ID_DISTANCE_SENSOR, 15)
 
 # Initialize params for a little FPS counter
 start_time = time.time()
 time_x = 1  # How often the frame rate is updated (in sec)
 time_counter = 0
 
-while capture.isOpened():
+while True:
+
+    copter.get_sensors()
 
     # Read in the camera frame by frame
-    _, frame_raw = capture.read()
+    if simulation:
+        frame_raw = camera_subscriber.get_image()  # For simulation
+    else:
+        _, frame_raw = capture.read()
 
     # Convert the frame out of BGR to HSV
-    frame_hsv = cv.resize(cv.cvtColor(frame_raw, cv.COLOR_BGR2HSV),
-                          (resolution_processed_x, resolution_processed_y))
+    frame_hsv = cv.cvtColor(frame_raw, cv.COLOR_BGR2HSV)
 
     # Create all the contours
     generate_contours(cyan, 19, 19, 100, 200)
@@ -523,52 +668,59 @@ while capture.isOpened():
     frame_contours_bgr = np.full_like(frame_hsv, 255)
 
     if cyan.contours:
-        cv.drawContours(frame_contours_bgr, cyan.contours[0:5],    -1, (205, 149,   0), 2)
+        cv.drawContours(frame_contours_bgr, cyan.contours[0:5], -1, (205, 149, 0), 2)
     if magenta.contours:
-        cv.drawContours(frame_contours_bgr, magenta.contours[0:5], -1, (78,   31, 162), 2)
+        cv.drawContours(frame_contours_bgr, magenta.contours[0:5], -1, (78, 31, 162), 2)
     if yellow.contours:
-        cv.drawContours(frame_contours_bgr, yellow.contours[0:7],  -1, (24,  208, 255), 2)
+        cv.drawContours(frame_contours_bgr, yellow.contours[0:7], -1, (24, 208, 255), 2)
     if black.contours:
-        cv.drawContours(frame_contours_bgr, black.contours[0:10],   -1, (43,   38,  34), 2)
+        cv.drawContours(frame_contours_bgr, black.contours[0:10], -1, (43, 38, 34), 2)
 
-    # Create the new sets of contours that define the cardinal directions relative to the pad
-    contours_northSouth = \
-        contour_compare(cyan.contours, black.contours, clustering_distance) + \
-        contour_compare(magenta.contours, yellow.contours, clustering_distance)
-    contours_eastWest = \
-        contour_compare(cyan.contours, magenta.contours, clustering_distance) + \
-        contour_compare(black.contours, yellow.contours, clustering_distance)
+    if copter.mode == 'LAND':
 
-    base.num_cont_ns = len(contours_northSouth)
-    base.num_cont_ew = len(contours_eastWest)
+        # Create the new sets of contours that define the cardinal directions relative to the pad
+        contours_northSouth = \
+            contour_compare(cyan.contours, black.contours, clustering_distance) + \
+            contour_compare(magenta.contours, yellow.contours, clustering_distance)
+        contours_eastWest = \
+            contour_compare(cyan.contours, magenta.contours, clustering_distance) + \
+            contour_compare(black.contours, yellow.contours, clustering_distance)
 
-    # If the contours exist, fit a line of best fit to each of them using the huber method
-    if contours_northSouth and contours_eastWest:
+        base.num_cont_ns = len(contours_northSouth)
+        base.num_cont_ew = len(contours_eastWest)
 
-        base.read_lines(cv.fitLine(np.array(contours_northSouth), cv.DIST_HUBER, 0, 0.01, 0.01),
-                        cv.fitLine(np.array(contours_eastWest), cv.DIST_HUBER, 0, 0.01, 0.01))
+        # If the contours exist, fit a line of best fit to each of them using the huber method
+        if contours_northSouth and contours_eastWest:
 
-        if (base.get_intersection() is not None) and (base.get_heading() is not None):
+            base.read_lines(cv.fitLine(np.array(contours_northSouth), cv.DIST_HUBER, 0, 0.01, 0.01),
+                            cv.fitLine(np.array(contours_eastWest), cv.DIST_HUBER, 0, 0.01, 0.01))
 
-            # Until we've reached the desired lookback depth, continue incrementing.
-            # This ensures that we're not indexing into empty portions of the arrays.
-            if lookback_counter < lookback:
-                lookback_counter += 1
-            lookback_dynamic = lookback_counter
+            if (base.get_intersection() is not None) and (base.get_heading() is not None):
 
-            # Create the weighted heading and intersect
-            base.gen_weighted_values(lookback_dynamic)
+                # Until we've reached the desired lookback depth, continue incrementing.
+                # This ensures that we're not indexing into empty portions of the arrays.
+                if lookback_counter < lookback:
+                    lookback_counter += 1
+                lookback_dynamic = lookback_counter
 
-            # Issue the precision landing command to the flight controller
-            # TODO: Need to transform this into angle_x and angle_y
-            copter.send_landing_target(x_rad, y_rad)
-            print(f"Issuing land command:"
-                  f"Angle_x: {base.w_intersect_x},"
-                  f"Angle_y: {base.w_intersect_y},"
-                  f"Distance: {copter.rangefinder_distance}")
+                # Create the weighted heading and intersect
+                base.gen_weighted_values(lookback_dynamic)
 
-    # display_output()
+                # Turn the craft the face 0 degrees and keep it there
+                copter.set_yaw(0)
 
+                # Issue the precision landing command to the flight controller
+                if copter.rangefinder_distance:
+                    if copter.rangefinder_distance > 0.15:
+                        copter.send_landing_target(base.w_rad_x, base.w_rad_y)
+                        print(f"ISSUING LAND COMMAND: "
+                              f"Angle_x (deg): {np.rad2deg(base.w_rad_x)}, "
+                              f"Distance: {copter.rangefinder_distance}")
+
+        if copter.mode != 'LAND':
+            base.clear_session()
+
+    display_output()
     copter.send_heartbeat()
 
     # Used to log the FPS. Calcs passed time each frame
@@ -580,7 +732,7 @@ while capture.isOpened():
 
     # Press "k" to quit
     if cv.waitKey(27) == ord('k'):
-        capture.release()
+        # capture.release()
         # output.release()
         cv.destroyAllWindows()
         break
