@@ -5,12 +5,22 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="6c5a746c-218f-4eb6-a815-ff31de75b44a" name="Changes" comment="Corrected x-axis definition">
-      <change afterPath="$PROJECT_DIR$/.stubs/cv2/__init__.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/optimized_functions.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/requirements.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/Landing Simulation.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/Landing Simulation.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/contourDetection.py" beforeDir="false" afterPath="$PROJECT_DIR$/contourDetection.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/final_runtime.py" beforeDir="false" afterPath="$PROJECT_DIR$/final_runtime.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Optimization.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/color_gen_tester.py" beforeDir="false" afterPath="$PROJECT_DIR$/Random Tests/color_gen_tester.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/contourDetection.py" beforeDir="false" afterPath="$PROJECT_DIR$/Random Tests/contourDetection.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/downloaded_test.py" beforeDir="false" afterPath="$PROJECT_DIR$/Random Tests/downloaded_test.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/funcTests.py" beforeDir="false" afterPath="$PROJECT_DIR$/Random Tests/funcTests.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/image_train_loop.py" beforeDir="false" afterPath="$PROJECT_DIR$/Random Tests/image_train_loop.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/Random Tests/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mavlink_basic_tests.py" beforeDir="false" afterPath="$PROJECT_DIR$/Random Tests/mavlink_basic_tests.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/mavlink_sitl_tests.py" beforeDir="false" afterPath="$PROJECT_DIR$/Random Tests/mavlink_sitl_tests.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/roboflow_model.py" beforeDir="false" afterPath="$PROJECT_DIR$/Random Tests/roboflow_model.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/yolo_model.py" beforeDir="false" afterPath="$PROJECT_DIR$/Random Tests/yolo_model.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -27,9 +37,6 @@
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/../.." />
   </component>
-  <component name="HighlightingSettingsPerFile">
-    <setting file="file://$PROJECT_DIR$/venv/lib/python3.10/site-packages/cv2/__init__.py" root0="SKIP_INSPECTION" />
-  </component>
   <component name="MarkdownSettingsMigration">
     <option name="stateVersion" value="1" />
   </component>
@@ -41,16 +48,16 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ASKED_ADD_EXTERNAL_FILES&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.OpenProjectViewOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/Administrator/Documents/GitHub/WU-Team20-AutonomousDrone/Code/RaspberryPi/Vision/Landing Simulation&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ASKED_ADD_EXTERNAL_FILES": "true",
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "git-widget-placeholder": "main",
+    "last_opened_file_path": "C:/Users/Administrator/.pycharmInterpreters/standard-vision-interpreter",
+    "settings.editor.selected.configurable": "com.jetbrains.python.configuration.PythonContentEntriesConfigurable"
   }
-}</component>
+}]]></component>
   <component name="PyConsoleOptionsProvider">
     <option name="myPythonConsoleState">
       <console-settings module-name="Landing Simulation" is-module-sdk="true">
@@ -58,6 +65,11 @@
         <option name="myModuleName" value="Landing Simulation" />
       </console-settings>
     </option>
+  </component>
+  <component name="RecentsManager">
+    <key name="MoveFile.RECENT_KEYS">
+      <recent name="C:\Users\Administrator\Documents\GitHub\WU-Team20-AutonomousDrone\Code\RaspberryPi\Random Tests" />
+    </key>
   </component>
   <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
   <component name="SvnConfiguration">
@@ -115,6 +127,9 @@
     </task>
     <option name="localTasksCounter" value="7" />
     <servers />
+  </component>
+  <component name="UnknownFeatures">
+    <option featureType="com.intellij.fileTypeFactory" implementationName="requirements.txt" />
   </component>
   <component name="Vcs.Log.Tabs.Properties">
     <option name="TAB_STATES">
