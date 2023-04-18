@@ -1,27 +1,7 @@
-# ----------------------------------------------------------------------------------------------------------------------
-# PRIMARY RUNTIME FILE
-# ----------------------------------------------------------------------------------------------------------------------
+#!/usr/bin/env python3
 
-# CREATED BY:
-# Senior Project Team 20
-# Widener University - School of Engineering
-# Ethan Matlack, Brian Chung, Dimple Gandevia, Chase Crane, Nick Olsen
-
-# DEPLOYMENT NOTES:
-# TODO: Complete a little write-up about how this code should be field-deployed.
-
-# ----------------------------------------------------------------------------------------------------------------------
-# NOTES
-# ----------------------------------------------------------------------------------------------------------------------
-
-# Camera is positioned such that CAMERA_UP is DRONE_RIGHT.
-# In other words, CAMERA_LEFT is DRONE_FORWARD.
-# Any camera inputs should be rotated 90 degrees CCW into DRONE frame.
-# The landing station UP is defined as the Magenta/Yellow edge.
-
-# ----------------------------------------------------------------------------------------------------------------------
-# IMPORTS
-# ----------------------------------------------------------------------------------------------------------------------
+# Simulation
+from CameraSubscriber import camera_subscriber
 
 # OpenCV
 import cv2 as cv
@@ -31,16 +11,12 @@ import numpy as np
 from pymavlink import mavutil
 from pymavlink.CSVReader import CSVReader
 from pymavlink.DFReader import DFReader_binary, DFReader_text
-from pymavlink.mavutil import mavtcp, mavtcpin, mavudp, mavmcast, mavchildexec, mavmmaplog, mavlogfile, mavserial, mavlink
-
-# Helper Libraries
-# import multiprocessing
-# import threading
+from pymavlink.mavutil import mavtcp, mavtcpin, mavudp, mavmcast, mavchildexec, mavmmaplog, mavlogfile, mavserial, \
+    mavlink
 
 # Python
 import time
-# import argparse
-# from typing import Optional
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 # CLASSES
@@ -48,7 +24,6 @@ import time
 
 
 class Copter:
-
     # Type hints for the serial object so that the IDE knows what to expect and I get working auto-complete :)
     serial: mavtcp | mavtcpin | mavudp | mavmcast | DFReader_binary | CSVReader | DFReader_text | mavchildexec | \
             mavmmaplog | mavlogfile | mavserial | mavlink
@@ -151,7 +126,6 @@ class Copter:
 
 class Color:
     def __init__(self, bound_lower, bound_upper, mask=None, blur=None, edges=None, contours=None, hierarchy=None):
-
         self.lower_bound = bound_lower
         self.upper_bound = bound_upper
         self.mask = mask
@@ -169,6 +143,7 @@ class Base:
     class contains four member functions that read in the line contours, retrieve the intersection of the base, retrieve
     the heading of the base, and generate the weighted values necessary for increasing accuracy over time.
     """
+
     def __init__(self):
 
         # Initialize as undefined, then the helper functions can assign attributed as the program moves along.
@@ -251,7 +226,7 @@ class Base:
         print("get_heading is called")
         try:
             angle_between = angle_between_lines(self.ns_vx, self.ns_vy, self.ew_vx, self.ew_vy)
-            self.heading_accuracy = 1 - abs(angle_between - np.pi/2)/(np.pi/2)
+            self.heading_accuracy = 1 - abs(angle_between - np.pi / 2) / (np.pi / 2)
 
         # Handles the case where the values are not yet assigned
         except AttributeError:
@@ -294,8 +269,9 @@ class Base:
         self.w_intersect_y = \
             np.average(self.intersect_y_list[:lookback_depth], weights=weight_array[:lookback_depth])
 
-        self.w_rad_x = ((self.w_intersect_x - resolution_processed_x*0.5)/resolution_processed_x)*horizontal_fov
+        self.w_rad_x = ((self.w_intersect_x - resolution_processed_x * 0.5) / resolution_processed_x) * horizontal_fov
         self.w_rad_y = ((self.w_intersect_y - resolution_processed_y * 0.5) / resolution_processed_y) * vertical_fov
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 # FUNCTIONS
@@ -321,13 +297,12 @@ def contour_compare(contour_list_a, contour_list_b, search_radius):
 def angle_between_lines(uv1_x, uv1_y, uv2_x, uv2_y):
     # Only accepts unit vectors for speed improvements.
     # Change the "divide by 2" portion of the angle_between calc to "MagV1*MagV2" to generalize.
-    dot_product = uv1_x*uv2_x + uv1_y*uv2_y
+    dot_product = uv1_x * uv2_x + uv1_y * uv2_y
     angle_between = np.arccos(dot_product / 2)
     return angle_between
 
 
 def line_intersection(p1, p2, p3, p4):
-
     # This assumes that an intersection point actually exists. Must validate prior to calling!!
 
     # Line 1 dy, dx and determinant
@@ -366,7 +341,7 @@ def generate_weight_array(length, flat_distance):
     flat_distance = int(flat_distance)
     weights = np.empty(length)
     weights[:flat_distance] = 1
-    weights[flat_distance+1:] = np.linspace(1, 0, num=length-(flat_distance+1))
+    weights[flat_distance + 1:] = np.linspace(1, 0, num=length - (flat_distance + 1))
     return weights
 
 
@@ -393,7 +368,6 @@ def generate_contours(color, gauss_blur_x, gauss_blur_y, canny_threshold1, canny
 
 
 def display_output():
-
     if (base.w_intersect_x is not None) and (base.w_intersect_y is not None):
 
         cv.circle(frame_contours_bgr,
@@ -402,11 +376,10 @@ def display_output():
 
         cv.line(frame_contours_bgr,
                 (int(base.w_intersect_x), int(base.w_intersect_y)),
-                (int(resolution_processed_x/2), int(resolution_processed_y/2)),
+                (int(resolution_processed_x / 2), int(resolution_processed_y / 2)),
                 (0, 0, 255), 3)
 
         if (base.ns_line is not None) and (base.ew_line is not None):
-
             # Draws a line from the BASE center along its NS direction
             cv.line(frame_contours_bgr,
                     (int(base.w_intersect_x), int(base.w_intersect_y)),
@@ -427,7 +400,6 @@ def display_output():
                        (25, 50), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
 
         if (base.num_cont_ns is not None) and (base.num_cont_ew is not None):
-
             cv.putText(frame_contours_bgr,
                        f"N-S: {int(base.num_cont_ns)}. E-W: {int(base.num_cont_ew)}",
                        (25, 75), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
@@ -483,19 +455,20 @@ fps = 0
 # ----------------------------------------------------------------------------------------------------------------------
 
 # Initializing the camera
-capture = cv.VideoCapture(1)
-print("Warming up camera...")
-time.sleep(3)
+# capture = cv.VideoCapture(1)
+# print("Warming up camera...")
+# time.sleep(3)
 
 # Create base and copter objects
 base = Base()
 copter = Copter()
+subscriber = CameraSubscriber()  # For simulation
 
 # ----------------------------------------------------------------------------------------------------------------------
 # MAIN BODY
 # ----------------------------------------------------------------------------------------------------------------------
 
-copter.connect('COM4')
+copter.connect('udp:127.0.0.1:14550')  # Changed for the sim
 copter.request_message_interval(mavutil.mavlink.BATTERY_STATUS, 5)
 copter.request_message_interval(mavutil.mavlink.DISTANCE_SENSOR, 10)
 
@@ -504,14 +477,22 @@ start_time = time.time()
 time_x = 1  # How often the frame rate is updated (in sec)
 time_counter = 0
 
-while capture.isOpened():
-
+while True:
     # Read in the camera frame by frame
-    _, frame_raw = capture.read()
+    _, frame_raw = camera_subscriber.get_image()  # For simulation
+    # _, frame_raw = capture.read()
+
+    h, w, _ = frame_raw.shape
+    aspect_ratio = w / h
+    new_w = int(height * aspect_ratio)
+    new_h = height
+    frame_raw_resized = cv2.resize(frame_raw, (new_w, new_h), interpolation=cv2.INTER_AREA)
+    crop_x = (new_w - width) // 2
+    crop_y = (new_h - height) // 2
+    frame_raw_cropped = frame_raw_resized[crop_y:crop_y + height, crop_x:crop_x + width]
 
     # Convert the frame out of BGR to HSV
-    frame_hsv = cv.resize(cv.cvtColor(frame_raw, cv.COLOR_BGR2HSV),
-                          (resolution_processed_x, resolution_processed_y))
+    frame_hsv = cv.cvtColor(frame_raw_cropped, cv.COLOR_BGR2HSV)
 
     # Create all the contours
     generate_contours(cyan, 19, 19, 100, 200)
@@ -523,13 +504,13 @@ while capture.isOpened():
     frame_contours_bgr = np.full_like(frame_hsv, 255)
 
     if cyan.contours:
-        cv.drawContours(frame_contours_bgr, cyan.contours[0:5],    -1, (205, 149,   0), 2)
+        cv.drawContours(frame_contours_bgr, cyan.contours[0:5], -1, (205, 149, 0), 2)
     if magenta.contours:
-        cv.drawContours(frame_contours_bgr, magenta.contours[0:5], -1, (78,   31, 162), 2)
+        cv.drawContours(frame_contours_bgr, magenta.contours[0:5], -1, (78, 31, 162), 2)
     if yellow.contours:
-        cv.drawContours(frame_contours_bgr, yellow.contours[0:7],  -1, (24,  208, 255), 2)
+        cv.drawContours(frame_contours_bgr, yellow.contours[0:7], -1, (24, 208, 255), 2)
     if black.contours:
-        cv.drawContours(frame_contours_bgr, black.contours[0:10],   -1, (43,   38,  34), 2)
+        cv.drawContours(frame_contours_bgr, black.contours[0:10], -1, (43, 38, 34), 2)
 
     # Create the new sets of contours that define the cardinal directions relative to the pad
     contours_northSouth = \
@@ -560,14 +541,13 @@ while capture.isOpened():
             base.gen_weighted_values(lookback_dynamic)
 
             # Issue the precision landing command to the flight controller
-            # TODO: Need to transform this into angle_x and angle_y
-            copter.send_landing_target(x_rad, y_rad)
+            copter.send_landing_target(base.w_rad_x, base.w_rad_y)
             print(f"Issuing land command:"
                   f"Angle_x: {base.w_intersect_x},"
                   f"Angle_y: {base.w_intersect_y},"
                   f"Distance: {copter.rangefinder_distance}")
 
-    # display_output()
+    display_output()
 
     copter.send_heartbeat()
 
@@ -580,7 +560,7 @@ while capture.isOpened():
 
     # Press "k" to quit
     if cv.waitKey(27) == ord('k'):
-        capture.release()
+        # capture.release()
         # output.release()
         cv.destroyAllWindows()
         break

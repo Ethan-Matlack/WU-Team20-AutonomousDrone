@@ -3,6 +3,7 @@ import numpy as np
 import time
 import math
 
+
 def contour_compare(contour_list_a, contour_list_b, search_radius):
     contour_list_common = []
     for contour_a in contour_list_a:
