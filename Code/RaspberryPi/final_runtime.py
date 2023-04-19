@@ -6,10 +6,16 @@ import pymavlink
 from pymavlink import mavutil
 import time
 import sys
+import threading
 
-# IMPORTANT: ENSURE THE SIMULATION FLAG IS SET CORRECTLY!!!
-simulation = False
-if simulation:
+# IMPORTANT: ENSURE THE RUN STATE FLAG IS SET CORRECTLY!!!
+# Only 'drone', 'usb', and 'simulation' are valid options
+run_state = 'drone'
+
+# This flag disables the image output window(s). Set to false when code is deployed
+show_displays = False
+
+if run_state == 'simulation':
     from simulation_setup import *
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -34,7 +40,7 @@ class Copter:
         self.battery_voltage = None
         self.battery_remaining = None
 
-    def connect(self, device: str = '/dev/ttyAMA0', baud: int = 57600) -> None:
+    def connect(self, device: str = '/dev/serial0', baud: int = 921000) -> None:
         """
         Establishes the initial connection from the RPi to the Pixhawk.
 
@@ -52,22 +58,23 @@ class Copter:
         print("Heartbeat from system (system %u component %u)" %
               (self.master.target_system, self.master.target_component))
 
-    def setup_camera_details(self, camera_type: str):
+    def setup_camera_details(self, camera: str):
 
-        if camera_type == 'RaspberryPiV2':
+        if camera == 'RaspberryPiV2':
             self.resolution_camera_x = 1920
             self.resolution_camera_y = 1080
+            self.resolution_processed_x = self.resolution_camera_x / 3
+            self.resolution_processed_y = self.resolution_camera_y / 3
             self.horizontal_fov = np.deg2rad(62.2)
             self.vertical_fov = np.deg2rad(48.8)
-            self.resolution_processed_x = 720
-            self.resolution_processed_y = 480
-        elif camera_type == 'Simulated':
+        elif camera == 'simulation':
+            # These values might not be correct
             self.resolution_camera_x = 1920
             self.resolution_camera_y = 1080
-            self.horizontal_fov = np.deg2rad(62.2)
-            self.vertical_fov = np.deg2rad(48.8)
             self.resolution_processed_x = 640
             self.resolution_processed_y = 480
+            self.horizontal_fov = np.deg2rad(62.2)
+            self.vertical_fov = np.deg2rad(48.8)
         else:
             print('You must use a predefined camera!')
             raise Exception
@@ -337,13 +344,23 @@ class Base:
         self.intersect_x_list.insert(0, self.intersection[0])
         self.intersect_y_list.insert(0, self.intersection[1])
 
+        heading_list_length = len(self.heading_list)
+        intersect_x_list_length = len(self.intersect_x_list)
+        intersect_y_list_length = len(self.intersect_y_list)
+
+        depth_heading = depth_x = depth_y = lookback_depth
+
+        if heading_list_length < lookback_depth:
+            depth_heading = heading_list_length
+        if intersect_x_list_length < lookback_depth:
+            depth_x = intersect_x_list_length
+        if intersect_y_list_length < lookback_depth:
+            depth_y = intersect_y_list_length
+
         # Use the un-weighted list to do a weighted average against the weights array
-        self.w_heading = \
-            np.average(self.heading_list[:lookback_depth], weights=weight_array[:lookback_depth])
-        self.w_intersect_x = \
-            np.average(self.intersect_x_list[:lookback_depth], weights=weight_array[:lookback_depth])
-        self.w_intersect_y = \
-            np.average(self.intersect_y_list[:lookback_depth], weights=weight_array[:lookback_depth])
+        self.w_heading = np.average(self.heading_list[:depth_heading], weights=weight_array[:depth_heading])
+        self.w_intersect_x = np.average(self.intersect_x_list[:depth_x], weights=weight_array[:depth_x])
+        self.w_intersect_y = np.average(self.intersect_y_list[:depth_y], weights=weight_array[:depth_y])
 
         self.offset_x = self.w_intersect_x - (copter.resolution_processed_x / 2)
         self.offset_y = self.w_intersect_y - (copter.resolution_processed_y / 2)
@@ -366,6 +383,77 @@ class Base:
         self.offset_y = None
         self.w_rad_x = None
         self.w_rad_y = None
+
+
+class FreshestFrame(threading.Thread):
+    def __init__(self, capture_frame, name='FreshestFrame'):
+        self.capture = capture_frame
+        assert self.capture.isOpened()
+
+        # this lets the read() method block until there's a new frame
+        self.cond = threading.Condition()
+
+        # this allows us to stop the thread gracefully
+        self.running = False
+
+        # keeping the newest frame around
+        self.frame = None
+
+        # passing a sequence number allows read() to NOT block
+        # if the currently available one is exactly the one you ask for
+        self.latestnum = 0
+
+        # this is just for demo purposes
+        self.callback = None
+
+        super().__init__(name=name)
+        self.start()
+
+    def start(self):
+        self.running = True
+        super().start()
+
+    def release(self, timeout=None):
+        self.running = False
+        self.join(timeout=timeout)
+        self.capture.release()
+
+    def run(self):
+        counter = 0
+        while self.running:
+            # block for fresh frame
+            (rv, img) = self.capture.read()
+            assert rv
+            counter += 1
+
+            # publish the frame
+            with self.cond:  # lock the condition for this operation
+                self.frame = img if rv else None
+                self.latestnum = counter
+                self.cond.notify_all()
+
+            if self.callback:
+                self.callback(img)
+
+    def read(self, wait=True, seqnumber=None, timeout=None):
+        # with no arguments (wait=True), it always blocks for a fresh frame
+        # with wait=False it returns the current frame immediately (polling)
+        # with a seqnumber, it blocks until that frame is available (or no wait at all)
+        # with timeout argument, may return an earlier frame;
+        #   may even be (0,None) if nothing received yet
+
+        with self.cond:
+            if wait:
+                if seqnumber is None:
+                    seqnumber = self.latestnum + 1
+                if seqnumber < 1:
+                    seqnumber = 1
+
+                rv = self.cond.wait_for(lambda: self.latestnum >= seqnumber, timeout=timeout)
+                if not rv:
+                    return (self.latestnum, self.frame)
+
+            return (self.latestnum, self.frame)
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -480,10 +568,11 @@ def generate_weight_array(length, flat_distance):
     Returns:
         weights: A numpy array with a shape of (length,) and values that decrease linearly from 1 to 0 over its length.
     """
-    flat_distance = int(flat_distance)
+    flat_distance = int(flat_distance - 1)
     weights = np.empty(length)
     weights[:flat_distance] = 1
-    weights[flat_distance + 1:] = np.linspace(1, 0, num=length - (flat_distance + 1))
+    weights[flat_distance:] = np.linspace(1, 0, length - flat_distance)
+    print(weights)
     return weights
 
 
@@ -617,12 +706,17 @@ base = Base()
 print("Creating copter object")
 copter = Copter()
 
-if simulation:
-    camera_type = 'Simulation'
+if run_state == 'simulation':
+    camera_type = 'simulation'
     camera_subscriber = CameraSubscriber()
-else:
+elif run_state == 'usb' or run_state == 'drone':
     camera_type = 'RaspberryPiV2'
-    capture = cv.VideoCapture(1)
+    capture = cv.VideoCapture(0, cv.CAP_DSHOW)
+    capture.set(cv.CAP_PROP_FPS, 30)
+    capture.set(cv.CAP_PROP_FRAME_WIDTH, copter.resolution_processed_x)
+    capture.set(cv.CAP_PROP_FRAME_HEIGHT, copter.resolution_processed_y)
+    capture_fresh = FreshestFrame(capture)
+    frame_count = 0
 
 copter.setup_camera_details(camera_type)
 
@@ -631,8 +725,10 @@ copter.setup_camera_details(camera_type)
 # ----------------------------------------------------------------------------------------------------------------------
 
 print("Attempting to connect...")
-if simulation:
+if run_state == 'simulated':
     copter.connect('udp:127.0.0.1:14550')
+elif run_state == 'usb':
+    copter.connect('COM4', 9600)
 else:
     copter.connect()
 print("===============================================================")
@@ -650,10 +746,13 @@ while True:
     copter.get_sensors()
 
     # Read in the camera frame by frame
-    if simulation:
+    if run_state == 'simulated':
         frame_raw = camera_subscriber.get_image()  # For simulation
-    else:
-        _, frame_raw = capture.read()
+    elif run_state == 'usb' or run_state == 'drone':
+        # _, frame_raw = capture.read()
+        t0 = time.perf_counter()
+        frame_count, frame_raw = capture_fresh.read(seqnumber=frame_count + 1)
+        dt = time.perf_counter() - t0
 
     # Convert the frame out of BGR to HSV
     frame_hsv = cv.cvtColor(frame_raw, cv.COLOR_BGR2HSV)
@@ -676,7 +775,8 @@ while True:
     if black.contours:
         cv.drawContours(frame_contours_bgr, black.contours[0:10], -1, (43, 38, 34), 2)
 
-    if copter.mode == 'LAND':
+    print(f"Copter mode: {copter.mode}")
+    if copter.mode == 'LAND' or copter.mode == 'STABILIZE':
 
         # Create the new sets of contours that define the cardinal directions relative to the pad
         contours_northSouth = \
@@ -707,7 +807,7 @@ while True:
                 base.gen_weighted_values(lookback_dynamic)
 
                 # Turn the craft the face 0 degrees and keep it there
-                copter.set_yaw(0)
+                copter.set_yaw(90)
 
                 # Issue the precision landing command to the flight controller
                 if copter.rangefinder_distance:
@@ -720,7 +820,8 @@ while True:
         if copter.mode != 'LAND':
             base.clear_session()
 
-    display_output()
+    if show_displays:
+        display_output()
     copter.send_heartbeat()
 
     # Used to log the FPS. Calcs passed time each frame
@@ -732,7 +833,8 @@ while True:
 
     # Press "k" to quit
     if cv.waitKey(27) == ord('k'):
-        # capture.release()
-        # output.release()
         cv.destroyAllWindows()
+        if not run_state:
+            # capture.release()
+            capture_fresh.release()
         break
