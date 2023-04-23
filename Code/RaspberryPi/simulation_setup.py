@@ -3,7 +3,7 @@ from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 
 
-class CameraSubscriber:
+class ROSCameraSubscriber:
     def __init__(self, topic_name="/roscam/cam/image_raw"):
         """
         Initializes a CameraSubscriber object.
